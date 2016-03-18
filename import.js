@@ -20,22 +20,59 @@ window.onerror = function(message) {
 var open = window.indexedDB.open("tweets", 4);
 var openDone = false;
 
-function eventOnerror(event) {
+function showError(event) {
 	alert(event.target.error);
 }
 
-open.onerror = eventOnerror;
+function changeStatusRunning(element) {
+	element.className = "running";
+}
+
+function changeStatus(element, status) {
+	element.textContent = status;
+}
+
+function showProgress(element, loaded, total) {
+	element.value = loaded / total * 100;
+}
+
+open.onerror = showError;
 
 open.onsuccess = function() {
 	openDone = true;
 }
 
 document.getElementById("file").onchange = function() {
-	this.disabled = true;
+	var file = this;
+	file.disabled = true;
+
 	var reader = new FileReader();
 
-	reader.onerror = eventOnerror;
-	reader.onload = function() {
+	reader.onerror = showError;
+
+	var readerProgress = document.getElementById("reader-progress");
+	var readerStatus = document.getElementById("reader-status");
+
+	reader.onloadstart = function() {
+		changeStatusRunning(readerStatus);
+	}
+
+	reader.onprogress = function(event) {
+		if (event.lengthComputable) {
+			changeStatus(readerStatus,
+				"Reading (" + event.loaded + "/" + event.total + " bytes)");
+
+			showProgress(readerProgress, event.loaded, event.total);
+		}
+	}
+
+	reader.onload = function(event) {
+		reader.onprogress(event);
+
+		var parseProgress = document.getElementById("parse-progress");
+		var parseStatus = document.getElementById("parse-status");
+		changeStatusRunning(parseStatus);
+
 		var entry = "";
 		var rows = [];
 		var row = [];
@@ -77,9 +114,19 @@ document.getElementById("file").onchange = function() {
 				i++;
 				break;
 			}
+
+			changeStatus(parseStatus, "Parsing ("
+				+ i + "/" + this.result.length + " bytes, "
+				+ rows.length + " entries)");
+
+			showProgress(parseProgress, i, this.result.length);
 		}
 
 		open.onsuccess = function() {
+			var storeProgress = document.getElementById("store-progress");
+			var storeStatus = document.getElementById("store-status");
+			changeStatusRunning(storeStatus);
+
 			var store = open.result
 				.transaction("tweets", "readwrite")
 				.objectStore("tweets");
@@ -92,10 +139,19 @@ document.getElementById("file").onchange = function() {
 					object[rows[0][j]] = text.value;
 					}
 
-				store.add(object).onerror = eventOnerror;
+				store.add(object).onerror = showError;
+
+				changeStatus(storeStatus, "Storing ("
+					+ i + "/" + (rows.length - 1)
+					+ " tweets)");
+
+				showProgress(storeProgress, i, rows.length);
 			}
 
-			alert("Done");
+			var doneStatus = document.getElementById("done-status");
+			changeStatusRunning(doneStatus);
+			changeStatus(doneStatus,
+				"Done (Type \"tweets\" in the omnibox and press tab to search tweets)");
 		}
 
 		if (openDone)

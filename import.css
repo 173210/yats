@@ -1,0 +1,9 @@
+status {
+	display: block;
+}
+	.pending {
+		color: gray;
+	}
+	.running {
+		color: black;
+	}

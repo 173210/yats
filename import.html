@@ -16,6 +16,7 @@
 <!DOCTYPE html>
 <html>
 	<head>
+		<link rel="stylesheet" href="import.css">
 		<title>Yet Another Tweets Search - Import CSV</title>
 	</head>
 	<body>
@@ -24,6 +25,19 @@
 			to import.
 		</p>
 		<input id="file" type="file" accept=".csv">
+		<p>
+			<status id="reader-status" class="pending">Reading</status>
+			<progress id="reader-progress" value=0 max=100>0 %</progress>
+		</p>
+		<p>
+			<status id="parse-status" class="pending">Parsing</status>
+			<progress id="parse-progress" value=0 max=100>0 %</progress>
+		</p>
+		<p>
+			<status id="store-status" class="pending">Storing</status>
+			<progress id="store-progress" value=0 max=100>0 %</progress>
+		</p>
+		<p><status id="done-status" class="pending">Done</status></p>
 		<p>
 			Copyright (C) 2016  173210 This program is licensed
 			under <a href="LICENSE.html">AGPLv3+.</a>

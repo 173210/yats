@@ -132,6 +132,7 @@ document.getElementById("file").onchange = function() {
 				.objectStore("tweets");
 			var text = document.createElement("textarea");
 
+			stored = 1;
 			for (i = 1; i < rows.length; i++) {
 				var object = { };
 				for (var j = 0; j < rows[i].length; j++) {
@@ -139,7 +140,17 @@ document.getElementById("file").onchange = function() {
 					object[rows[0][j]] = text.value;
 					}
 
-				store.add(object).onerror = showError;
+				var request = store.add(object);
+				request.onerror = showError;
+				request.onsuccess = function() {
+					stored++;
+					if (stored >= rows.length) {
+						var doneStatus = document.getElementById("done-status");
+						changeStatusRunning(doneStatus);
+						changeStatus(doneStatus,
+						"Done (Type \"tweets\" in the omnibox and press tab to search tweets)");
+					}
+				}
 
 				changeStatus(storeStatus, "Storing ("
 					+ i + "/" + (rows.length - 1)
@@ -147,11 +158,6 @@ document.getElementById("file").onchange = function() {
 
 				showProgress(storeProgress, i, rows.length);
 			}
-
-			var doneStatus = document.getElementById("done-status");
-			changeStatusRunning(doneStatus);
-			changeStatus(doneStatus,
-				"Done (Type \"tweets\" in the omnibox and press tab to search tweets)");
 		}
 
 		if (openDone)

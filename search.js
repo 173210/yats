@@ -204,11 +204,19 @@ open.onsuccess = function() {
 	store.openCursor().onsuccess = function(event) {
 		var cursor = event.target.result;
 		if (cursor) {
-			var text = cursor.value.text;
-			if (matchQuery(queries, text)) {
+			var value = cursor.value;
+			if (matchQuery(queries, value.text)) {
+				var div = document.createElement("div");
+				div.className = "timestamp";
+				div.textContent = value.retweeted_status_timestamp.length > 0 ?
+					value.retweeted_status_timestamp :
+					value.timestamp;
+
 				var p = document.createElement("p");
-				p.textContent = text;
-				document.getElementById("result").appendChild(p);
+
+				p.textContent = value.text;
+				document.getElementById("result").appendChild(p).appendChild(div);
+
 			}
 
 			cursor.continue();

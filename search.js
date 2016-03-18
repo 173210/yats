@@ -17,23 +17,197 @@ window.onerror = function(message) {
 	alert(message);
 }
 
-var query = window.location.search.substring(1);
 var open = window.indexedDB.open("tweets", 4);
 
 open.onerror = function(event) {
 	alert(event.target.error);
 }
 
+function getIteratorOfString(string) {
+	function next() {
+		if (this.count >= this.value.length) {
+			return { done: true };
+		} else {
+			var value = this.value[this.count];
+			this.count++;
+
+			return { done: false, value: value };
+		}
+	}
+
+	return { next: next, count: 0, value: string };
+}
+
+function getTypeOfQuery(string) {
+	if (string.length <= 0)
+		return null;
+	else if (string == "OR")
+		return "OPCODE";
+	else
+		return "STRING";
+}
+
+function parse(destination, iterator, block) {
+	var string = "";
+
+	while (true) {
+		var result = iterator.next();
+		if (result.done || result.value == ")")
+			break;
+
+		switch (result.value) {
+		case " ":
+			var query = { type: getTypeOfQuery(string), value: string };
+			if (query.type)
+				destination.push(query);
+
+			string = "";
+			break;
+
+		case "\"":
+			while (true) {
+				result = iterator.next();
+				if (result.done || result.value == "\"")
+					break;
+				else
+					string += result.value;
+			}
+
+			if (result.done)
+				iterator = getIteratorOfString(string + iterator.value);
+			else if (string.length > 0) {
+				var query = { type: "STRING", value: string };
+				destination.push(query);
+			}
+
+			string = "";
+			break;
+
+		case "(":
+			if (string.length > 0) {
+				string += result.value;
+			} else {
+				var query = { type: "BLOCK", value: [ ] };
+				parse(query.value, iterator, true);
+				if (query.value.length > 0)
+					destination.push(query);
+			}
+
+			break;
+
+		case ")":
+			if (block) {
+				var query = { type: getTypeOfQuery(string), value: string };
+				if (query.type)
+					destination.push(query);
+
+				return;
+			} else {
+				string += result.value;
+				break;
+			}
+
+		case "-":
+			if (string.length > 0) {
+				string += result.value;
+				break;
+			} else {
+				destination.push({ type: "OPCODE", value: "NOT" });
+				break;
+			}
+
+		default:
+			string += result.value;
+			break;
+		}
+	}
+
+	var query = { type: getTypeOfQuery(string), value: string };
+	if (query.type)
+		destination.push(query);
+}
+
+function matchQuery(queries, text) {
+	var r;
+	var opcode = null;
+	for (query of queries) {
+		var cur;
+
+		switch (query.type) {
+		case "STRING":
+			cur = text.indexOf(query.value) >= 0;
+			break;
+
+		case "OPCODE":
+			if (opcode)
+				return false;
+
+			opcode = query.value;
+			break;
+
+		case "BLOCK":
+			cur = matchQuery(query.value, text);
+			break;
+
+		default:
+			throw "Internal error: unexpected type";
+			break;
+		}
+
+		if (cur == undefined)
+			continue;
+
+		if (r == undefined) {
+			switch (opcode) {
+			case null:
+				r = cur;
+				break;
+
+			case "OR":
+				r = text.indexOf(opcode) >= 0 && cur;
+				break;
+
+			case "NOT":
+				return false;
+
+			default:
+				throw "Internal error: unexpected opcode";
+			}
+		} else {
+			switch (opcode) {
+			case null:
+				r = r && cur;
+				break;
+
+			case "OR":
+				r = r || cur;
+				break;
+
+			case "NOT":
+				r = r && !cur;
+				break;
+
+			default:
+				throw "Internal error: unexpected opcode";
+			}
+		}
+	}
+
+	return r;
+}
+
 open.onsuccess = function() {
+	var queries = [];
+	parse(queries, getIteratorOfString(decodeURI(window.location.search.substring(1))), false);
+
 	var store = open.result.transaction("tweets", "readonly").objectStore("tweets");
 	store.openCursor().onsuccess = function(event) {
 		var cursor = event.target.result;
-
 		if (cursor) {
-			var value = cursor.value;
-			if (value.text.indexOf(query) > 0) {
-				p = document.createElement("p");
-				p.textContent = value.text;
+			var text = cursor.value.text;
+			if (matchQuery(queries, text)) {
+				var p = document.createElement("p");
+				p.textContent = text;
 				document.getElementById("result").appendChild(p);
 			}
 

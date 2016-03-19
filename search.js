@@ -153,7 +153,6 @@ function matchQuery(queries, text) {
 
 		default:
 			throw "Internal error: unexpected type";
-			break;
 		}
 
 		if (cur == undefined)

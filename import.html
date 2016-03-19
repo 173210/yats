@@ -21,14 +21,16 @@
 	</head>
 	<body>
 		<p>
-			You need to import CSV at first. Please choose the CSV
-			to import.
+			You need to import tweets at first. Please download your
+			Twitter archive, and choose it. To donwload one,
+			see <a href=https://support.twitter.com/articles/20170160>Twitter help center</a>.
 		</p>
-		<input id="file" type="file" accept=".csv">
+		<input id="file" type="file" accept=".zip">
 		<p>
 			<status id="reader-status" class="pending">Reading</status>
 			<progress id="reader-progress" value=0 max=100>0 %</progress>
 		</p>
+		<p><status id="zip-status" class="pending">Decompressing</status></p>
 		<p>
 			<status id="parse-status" class="pending">Parsing</status>
 			<progress id="parse-progress" value=0 max=100>0 %</progress>
@@ -41,6 +43,10 @@
 		<p>
 			Copyright (C) 2016  173210 This extension is licensed
 			under <a href="LICENSE.html">AGPLv3+.</a>
+		</p>
+		<p>
+			This feature uses <a href="http://stuk.github.io/jszip/">JSZip</a>,
+			licensed under MIT or GPLv3. <a href="JSZIP_LICENSE.markdown">License Notice</a>
 		</p>
 		<script src="import.js"></script>
 	</body>

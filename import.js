@@ -69,6 +69,9 @@ document.getElementById("file").onchange = function() {
 	reader.onload = function(event) {
 		reader.onprogress(event);
 
+		changeStatusRunning(document.getElementById("zip-status"));
+		var csv = (new JSZip(this.result)).file("tweets.csv").asText();
+
 		var parseProgress = document.getElementById("parse-progress");
 		var parseStatus = document.getElementById("parse-status");
 		changeStatusRunning(parseStatus);
@@ -76,8 +79,8 @@ document.getElementById("file").onchange = function() {
 		var entry = "";
 		var rows = [];
 		var row = [];
-		for (var i = 0; i < this.result.length;) {
-			switch (this.result[i]) {
+		for (var i = 0; i < csv.length;) {
+			switch (csv[i]) {
 			case ",":
 				row.push(entry);
 				entry = "";
@@ -95,31 +98,31 @@ document.getElementById("file").onchange = function() {
 			case "\"":
 				while (true) {
 					i++;
-					if (this.result[i] == "\"") {
+					if (csv[i] == "\"") {
 						i++;
-						if (this.result[i] == "\"") {
+						if (csv[i] == "\"") {
 							entry += "\"";
 						} else {
 							break;
 						}
 					} else {
-						entry += this.result[i];
+						entry += csv[i];
 					}
 				}
 
 				break;
 
 			default:
-				entry += this.result[i];
+				entry += csv[i];
 				i++;
 				break;
 			}
 
 			changeStatus(parseStatus, "Parsing ("
-				+ i + "/" + this.result.length + " bytes, "
+				+ i + "/" + csv.length + " bytes, "
 				+ rows.length + " entries)");
 
-			showProgress(parseProgress, i, this.result.length);
+			showProgress(parseProgress, i, csv.length);
 		}
 
 		open.onsuccess = function() {
@@ -164,5 +167,5 @@ document.getElementById("file").onchange = function() {
 			open.onsuccess();
 	}
 
-	reader.readAsText(this.files[0]);
+	reader.readAsArrayBuffer(this.files[0]);
 }

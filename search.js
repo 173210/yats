@@ -130,7 +130,7 @@ function parse(destination, iterator, block) {
 function matchQuery(queries, text) {
 	var r;
 	var opcode = null;
-	for (query of queries) {
+	queries.some(function(query) {
 		var cur;
 
 		switch (query.type) {
@@ -139,8 +139,10 @@ function matchQuery(queries, text) {
 			break;
 
 		case "OPCODE":
-			if (opcode)
-				return false;
+			if (opcode) {
+				r = false;
+				return true;
+			}
 
 			opcode = query.value;
 			break;
@@ -155,7 +157,7 @@ function matchQuery(queries, text) {
 		}
 
 		if (cur == undefined)
-			continue;
+			return;
 
 		if (r == undefined) {
 			switch (opcode) {
@@ -168,7 +170,8 @@ function matchQuery(queries, text) {
 				break;
 
 			case "NOT":
-				return false;
+				r = false;
+				return true;
 
 			default:
 				throw "Internal error: unexpected opcode";
@@ -191,7 +194,7 @@ function matchQuery(queries, text) {
 				throw "Internal error: unexpected opcode";
 			}
 		}
-	}
+	});
 
 	return r;
 }
@@ -236,8 +239,9 @@ open.onupgradeneeded = function() {
 		{ title: "retweeted_status_user_id", unique: false },
 		{ title: "retweeted_status_timestamp", unique: false },
 		{ title: "expanded_urls", unique: false }];
-	for (v of col)
+	col.forEach(function(v) {
 		store.createIndex(v.title, v.title, { unique: v.unique });
+	});
 
 	window.location = "import.html";
 }

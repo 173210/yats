@@ -17,6 +17,15 @@ window.onerror = function(message) {
 	alert(message);
 }
 
+var token = fetch("https://api.twitter.com/oauth2/token", {
+	method: "POST",
+	headers: {
+		"Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+		"Authorization": CREDENTIAL
+	}, body: "grant_type=client_credentials" });
+
+token.catch = alert;
+
 var open = window.indexedDB.open("tweets", 4);
 
 open.onerror = function(event) {
@@ -198,37 +207,89 @@ function matchQuery(queries, text) {
 	return r;
 }
 
+function fetchGetJson(response) {
+	return response.json();
+}
+
+var users = { };
+
+// WARNING: Asynchronous function
+function popTweets(tweets, tokenResponse) {
+	var tweet = tweets.pop();
+	if (!tweet)
+		return;
+
+	function show() {
+		var user = users[tweet.user_id];
+
+		var timestamp = document.createElement("a");
+		timestamp.setAttribute("href", "https://twitter.com/"
+			+ encodeURI(user.screen_name)
+			+ "/statuses/" + encodeURI(tweet.tweet_id));
+		timestamp.textContent = tweet.retweeted_status_timestamp.length > 0 ?
+			tweet.retweeted_status_timestamp : tweet.timestamp;
+
+		var header = document.createElement("div");
+		header.textContent = user.name + " @" + user.screen_name + " \u00B7 ";
+		header.appendChild(timestamp);
+
+		var text = document.createElement("p");
+		text.className = "text";
+		text.textContent = tweet.text;
+
+		var top = document.createElement("p");
+		top.appendChild(header);
+		top.appendChild(text);
+		document.getElementById("result").appendChild(top);
+
+		popTweets(tweets, tokenResponse);
+	}
+
+	if (users[tweet.user_id]) {
+		show();
+	} else
+		fetch("https://api.twitter.com/1.1/users/show.json?user_id="
+			+ encodeURI(tweet.user_id), {
+			method: "GET",
+			headers: { "Authorization": "Bearer " + tokenResponse.access_token }
+		}).then(fetchGetJson, alert)
+			.then(function(showResponse) {
+				users[tweet.user_id] = showResponse;
+				show();
+			}, alert);
+}
+
 open.onsuccess = function() {
 	var queries = [];
 	parse(queries, getIteratorOfString(decodeURI(window.location.search.substring(1))), false);
 
-	var store = open.result.transaction("tweets", "readonly").objectStore("tweets");
-	store.openCursor().onsuccess = function(event) {
-		var cursor = event.target.result;
-		if (cursor) {
-			var value = cursor.value;
-			if (matchQuery(queries, value.text)) {
-				var div = document.createElement("div");
-				div.className = "timestamp";
-				div.textContent = value.retweeted_status_timestamp.length > 0 ?
-					value.retweeted_status_timestamp :
-					value.timestamp;
+	var tweets = [];
 
-				var p = document.createElement("p");
+	token.then(fetchGetJson, alert)
+		.then(function(tokenResponse) {
+			open.result.transaction("tweets", "readonly")
+				.objectStore("tweets")
+				.openCursor()
+				.onsuccess = function(event)
+			{
+				var cursor = event.target.result;
+				if (cursor) {
+					var value = cursor.value;
+					if (matchQuery(queries, value.text))
+						tweets.push(value);
 
-				p.textContent = value.text;
-				document.getElementById("result").appendChild(p).appendChild(div);
-
+					cursor.continue();
+				} else {
+					popTweets(tweets, tokenResponse);
+				}
 			}
-
-			cursor.continue();
-		}
-	}
+		});
 }
 
 open.onupgradeneeded = function() {
 	store = open.result.createObjectStore("tweets", { autoIncrement : true });
-	const col = [{ title: "tweet_id", unique: true },
+	const col = [ { title: "user_id", unique: false },
+		{ title: "tweet_id", unique: true },
 		{ title: "in_reply_to_status_id", unique: false },
 		{ title: "in_reply_to_user_id", unique: false },
 		{ title: "timestamp", unique: false },

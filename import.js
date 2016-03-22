@@ -66,18 +66,63 @@ document.getElementById("file").onchange = function() {
 		}
 	}
 
+	var rows = [];
+
+	window.onmessage = function(event) {
+		open.onsuccess = function() {
+			var storeProgress = document.getElementById("store-progress");
+			var storeStatus = document.getElementById("store-status");
+			changeStatusRunning(storeStatus);
+
+			var store = open.result
+				.transaction("tweets", "readwrite")
+				.objectStore("tweets");
+			var text = document.createElement("textarea");
+
+			stored = 1;
+			for (i = 1; i < rows.length; i++) {
+				var object = { user_id: event.data.id };
+				for (var j = 0; j < rows[i].length; j++) {
+					text.innerHTML = rows[i][j];
+					object[rows[0][j]] = text.value;
+					}
+
+				var request = store.add(object);
+				request.onerror = showError;
+				request.onsuccess = function() {
+					stored++;
+					if (stored >= rows.length) {
+						var doneStatus = document.getElementById("done-status");
+						changeStatusRunning(doneStatus);
+						changeStatus(doneStatus,
+						"Done (Type \"tweets\" in the omnibox and press tab to search tweets)");
+					}
+				}
+
+				changeStatus(storeStatus, "Storing ("
+					+ i + "/" + (rows.length - 1)
+					+ " tweets)");
+
+				showProgress(storeProgress, i, rows.length);
+			}
+		}
+
+		if (openDone)
+			open.onsuccess();
+	}
+
 	reader.onload = function(event) {
 		reader.onprogress(event);
+		var zip = new JSZip(this.result);
 
-		changeStatusRunning(document.getElementById("zip-status"));
-		var csv = (new JSZip(this.result)).file("tweets.csv").asText();
+		changeStatusRunning(document.getElementById("csv-status"));
+		var csv = zip.file("tweets.csv").asText();
 
 		var parseProgress = document.getElementById("parse-progress");
 		var parseStatus = document.getElementById("parse-status");
 		changeStatusRunning(parseStatus);
 
 		var entry = "";
-		var rows = [];
 		var row = [];
 		for (var i = 0; i < csv.length;) {
 			switch (csv[i]) {
@@ -118,53 +163,18 @@ document.getElementById("file").onchange = function() {
 				break;
 			}
 
-			changeStatus(parseStatus, "Parsing ("
+			changeStatus(parseStatus, "Parsing tweets.csv ("
 				+ i + "/" + csv.length + " bytes, "
 				+ rows.length + " entries)");
 
 			showProgress(parseProgress, i, csv.length);
 		}
 
-		open.onsuccess = function() {
-			var storeProgress = document.getElementById("store-progress");
-			var storeStatus = document.getElementById("store-status");
-			changeStatusRunning(storeStatus);
+		changeStatusRunning(document.getElementById("user-status"));
+		document.getElementById("sandbox").contentWindow
+			.postMessage(zip.file("data/js/user_details.js").asText(), "*");
 
-			var store = open.result
-				.transaction("tweets", "readwrite")
-				.objectStore("tweets");
-			var text = document.createElement("textarea");
-
-			stored = 1;
-			for (i = 1; i < rows.length; i++) {
-				var object = { };
-				for (var j = 0; j < rows[i].length; j++) {
-					text.innerHTML = rows[i][j];
-					object[rows[0][j]] = text.value;
-					}
-
-				var request = store.add(object);
-				request.onerror = showError;
-				request.onsuccess = function() {
-					stored++;
-					if (stored >= rows.length) {
-						var doneStatus = document.getElementById("done-status");
-						changeStatusRunning(doneStatus);
-						changeStatus(doneStatus,
-						"Done (Type \"tweets\" in the omnibox and press tab to search tweets)");
-					}
-				}
-
-				changeStatus(storeStatus, "Storing ("
-					+ i + "/" + (rows.length - 1)
-					+ " tweets)");
-
-				showProgress(storeProgress, i, rows.length);
-			}
-		}
-
-		if (openDone)
-			open.onsuccess();
+		changeStatusRunning(document.getElementById("user-parse-status"));
 	}
 
 	reader.readAsArrayBuffer(this.files[0]);

@@ -30,11 +30,13 @@
 			<status id="reader-status" class="pending">Reading</status>
 			<progress id="reader-progress" value=0 max=100>0 %</progress>
 		</p>
-		<p><status id="zip-status" class="pending">Decompressing</status></p>
+		<p><status id="csv-status" class="pending">Extracting tweets.csv</status></p>
 		<p>
-			<status id="parse-status" class="pending">Parsing</status>
+			<status id="parse-status" class="pending">Parsing tweets.csv</status>
 			<progress id="parse-progress" value=0 max=100>0 %</progress>
 		</p>
+		<p><status id="user-status" class="pending">Extracting user_details.js</status>
+		<p><status id="user-parse-status" class="pending">Parsing user_details.js</status>
 		<p>
 			<status id="store-status" class="pending">Storing</status>
 			<progress id="store-progress" value=0 max=100>0 %</progress>
@@ -48,6 +50,7 @@
 			This feature uses <a href="http://stuk.github.io/jszip/">JSZip</a>,
 			licensed under MIT or GPLv3. <a href="JSZIP_LICENSE.markdown">License Notice</a>
 		</p>
+		<iframe id="sandbox" class="sandbox" src="sandbox.html"></iframe>
 		<script src="import.js"></script>
 	</body>
 </html>

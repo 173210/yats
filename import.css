@@ -7,3 +7,7 @@ status {
 	.running {
 		color: black;
 	}
+
+.sandbox {
+	display: none;
+}

@@ -1,5 +1,13 @@
 ifndef CREDENTIAL
-$(error set your credential to CREDENTIAL (e.g. key:secret))
+$(error set CREDENTIAL (e.g. CREDENTIAL=consumer_key:consumer_secret))
+endif
+
+CREDENTIAL_BASE64 := $(shell echo -n $(CREDENTIAL) | base64)
+
+ifdef NO_UGLIFY
+OUTPUT = > $@
+else
+OUTPUT = | uglifyjs -b beautify=false,ascii-only=true -c --screw-ie8 --comments '/!|Copyright/' -o $@
 endif
 
 KEYS := $(wildcard *.pem)
@@ -11,17 +19,17 @@ ifdef KEY
 CHROME_FLAGS := --pack-extension-key=$(KEY)
 endif
 
-yats.crx: $(addprefix yats/,manifest.json background.js	\
+yats.crx: $(addprefix yats/,LICENSE.html manifest.json background.js sandbox.html	\
 	search.css search.html search.js import.css import.html import.js)
 	chrome --pack-extension=yats $(CHROME_FLAGS)
 
 yats/search.js: search.js | yats
 	@echo Processing $<
-	@sed -e 's/CREDENTIAL/"$(CREDENTIAL)"/' $< | uglifyjs -c --screw-ie8 --comments /Copyright/ -o $@
+	@sed -e 's/CREDENTIAL/"Basic $(CREDENTIAL_BASE64)"/' $< $(OUTPUT)
 
 yats/import.js: jszip/dist/jszip.min.js import.js | yats/JSZIP_LICENSE.markdown yats
 	@echo Processing $^
-	@cat $^ | uglifyjs -c --screw-ie8 --comments '/!|Copyright/' -o $@
+	@cat $^ $(OUTPUT)
 
 yats/JSZIP_LICENSE.markdown: jszip/LICENSE.markdown | yats
 	cp $< $@

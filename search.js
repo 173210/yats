@@ -361,5 +361,9 @@ open.onupgradeneeded = function() {
 			+ i + "/" + col.length + ")";
 	};
 
-	window.location = "import.html";
+	function move() {
+		window.location = "import.html";
+	}
+
+	token.then(move, move);
 }

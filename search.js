@@ -341,7 +341,7 @@ open.onsuccess = function() {
 				} else {
 					resultInit();
 					window.onscroll = function() {
-						result.style.height = last.offsetTop + tweets.length * 40 + "px";
+						result.style.height = last.offsetTop + last.clientHeight + tweets.length * 40 + "px";
 						popTweets(tweets, tokenResponse);
 					}
 

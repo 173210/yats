@@ -233,6 +233,9 @@ function popTweets(tweets, tokenResponse) {
 	if (!tweet)
 		return;
 
+	const tweetOriginUserId = tweet.retweeted_status_user_id ?
+		tweet.retweeted_status_user_id : tweet.user_id;
+
 	function fetchApi(uri) {
 		return fetch(uri, {
 				method: "GET",
@@ -252,7 +255,7 @@ function popTweets(tweets, tokenResponse) {
 
 		const image = document.createElement("img");
 		image.className = "image";
-		image.setAttribute("src", users[tweet.user_id].profile_image_url_https);
+		image.setAttribute("src", users[tweetOriginUserId].profile_image_url_https);
 
 		const text = document.createElement("span");
 		text.className = "text";
@@ -290,13 +293,13 @@ function popTweets(tweets, tokenResponse) {
 		}
 	}
 
-	if (users[tweet.user_id]) {
+	if (users[tweetOriginUserId]) {
 		show();
 	} else
 		fetchApi("https://api.twitter.com/1.1/users/show.json?user_id="
-			+ encodeURI(tweet.user_id))
+			+ encodeURI(tweetOriginUserId))
 		.then(function(showResponse) {
-			users[tweet.user_id] = showResponse;
+			users[tweetOriginUserId] = showResponse;
 			show();
 		}, alert);
 }

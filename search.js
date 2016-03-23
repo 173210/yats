@@ -239,7 +239,7 @@ function popTweets(tweets, tokenResponse) {
 
 		const timestamp = document.createElement("a");
 		timestamp.setAttribute("href", userUri
-			+ "/statuses/" + encodeURI(tweet.tweet_id));
+			+ "/status/" + encodeURI(tweet.tweet_id));
 		timestamp.textContent = tweet.retweeted_status_timestamp.length > 0 ?
 			tweet.retweeted_status_timestamp : tweet.timestamp;
 

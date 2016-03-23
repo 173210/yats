@@ -38,7 +38,7 @@ const token = fetch("https://api.twitter.com/oauth2/token", {
 		"Authorization": CREDENTIAL
 	}, body: "grant_type=client_credentials" });
 
-token.catch = alert;
+token.catch(alert);
 
 const open = window.indexedDB.open("tweets", 4);
 

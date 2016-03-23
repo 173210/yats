@@ -226,10 +226,12 @@ function fetchGetJson(response) {
 }
 
 const users = { };
+var last;
 
-function popTweets(tweets, tokenResponse, event) {
-	if (document.body.scrollTop + document.documentElement.clientHeight
-		< result.offsetTop + result.clientHeight)
+function popTweets(tweets, tokenResponse) {
+	if (last &&
+		document.body.scrollTop + document.documentElement.clientHeight
+			< last.offsetTop + last.clientHeight)
 	{
 		return;
 	}
@@ -272,11 +274,11 @@ function popTweets(tweets, tokenResponse, event) {
 		top.appendChild(image);
 		top.appendChild(text);
 		top.appendChild(imageClear);
-		resultAppend(top);
+		last = resultAppend(top);
 
 		if (tweet.html) {
 			text.innerHTML = tweet.html;
-			window.onscroll(event);
+			window.onscroll();
 		} else {
 			oembed.then(function(oembedResponse) {
 				if (oembedResponse.html) {
@@ -293,11 +295,8 @@ function popTweets(tweets, tokenResponse, event) {
 					text.textContent = oembedResponse.error;
 				}
 
-				window.onscroll(event);
+				window.onscroll();
 			}, alert);
-
-			if (event)
-				event.waitUntil(oembed);
 		}
 	}
 
@@ -341,11 +340,12 @@ open.onsuccess = function() {
 					cursor.continue();
 				} else {
 					resultInit();
-					window.onscroll = function(event) {
-						popTweets(tweets, tokenResponse, event);
+					window.onscroll = function() {
+						result.style.height = last.offsetTop + tweets.length * 40 + "px";
+						popTweets(tweets, tokenResponse);
 					}
 
-					window.onscroll();
+					popTweets(tweets, tokenResponse);
 				}
 			}
 		});

@@ -235,16 +235,22 @@ function popTweets(tweets, tokenResponse) {
 
 	function show() {
 		const user = users[tweet.user_id];
+		const userUri = "https://twitter.com/" + encodeURI(user.screen_name);
 
 		const timestamp = document.createElement("a");
-		timestamp.setAttribute("href", "https://twitter.com/"
-			+ encodeURI(user.screen_name)
+		timestamp.setAttribute("href", userUri
 			+ "/statuses/" + encodeURI(tweet.tweet_id));
 		timestamp.textContent = tweet.retweeted_status_timestamp.length > 0 ?
 			tweet.retweeted_status_timestamp : tweet.timestamp;
 
+		const name = document.createElement("a");
+		name.setAttribute("href", userUri);
+		name.textContent = user.name;
+
 		const header = document.createElement("div");
-		header.textContent = user.name + " @" + user.screen_name + " \u00B7 ";
+		header.appendChild(name);
+		header.appendChild(document.createTextNode(
+			" @" + user.screen_name + " \u00B7 "));
 		header.appendChild(timestamp);
 
 		const text = document.createElement("p");

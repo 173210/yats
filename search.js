@@ -13,9 +13,7 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-window.onerror = function(message) {
-	alert(message);
-}
+window.onerror = alert;
 
 function resultInit() {
 	document.getElementById("result").innerHTML = "";

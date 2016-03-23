@@ -1,9 +1,9 @@
-.image {
-	float: left;
+footer,.image-clear {
+	clear: left;
 }
 
-.image-clear {
-	clear: left;
+.image {
+	float: left;
 }
 
 .twitter-tweet {

@@ -1,6 +1,6 @@
 {
 	"background": { "scripts": ["background.js"] },
-	"permissions": ["https://api.twitter.com/"],
+	"permissions": ["https://api.twitter.com/", "unlimitedStorage"],
 	"sandbox": { "pages": ["sandbox.html"] },
 	"description": "Add support to the omnibox to search your tweets.",
 	"name": "Yet Another Tweets Search",

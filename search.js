@@ -233,89 +233,72 @@ function popTweets(tweets, tokenResponse) {
 	if (!tweet)
 		return;
 
+	function fetchApi(uri) {
+		return fetch(uri, {
+				method: "GET",
+				headers: { "Authorization": "Bearer " + tokenResponse.access_token }
+			}).then(fetchGetJson, alert);
+	}
+
 	function show() {
-		const user = users[tweet.user_id];
-		const userUri = "https://twitter.com/" + encodeURI(user.screen_name);
+		if (tweet.html_expire < Date.now())
+			tweet.html = undefined;
+
+		var oembed;
+		if (!tweet.html) {
+			oembed = fetchApi("https://api.twitter.com/1/statuses/oembed.json?omit_script=true&id="
+				+ encodeURI(tweet.tweet_id));
+		}
 
 		const image = document.createElement("img");
 		image.className = "image";
-		image.setAttribute("src", user.profile_image_url_https);
+		image.setAttribute("src", users[tweet.user_id].profile_image_url_https);
 
-		const timestamp = document.createElement("a");
-		timestamp.setAttribute("href", userUri
-			+ "/status/" + encodeURI(tweet.tweet_id));
-		timestamp.textContent = tweet.retweeted_status_timestamp.length > 0 ?
-			tweet.retweeted_status_timestamp : tweet.timestamp;
-
-		const name = document.createElement("a");
-		name.setAttribute("href", userUri);
-		name.textContent = user.name;
-
-		const header = document.createElement("div");
-		header.appendChild(name);
-		header.appendChild(document.createTextNode(
-			" @" + user.screen_name + " \u00B7 "));
-		header.appendChild(timestamp);
-
-		const text = document.createElement("p");
+		const text = document.createElement("span");
 		text.className = "text";
-
-		var html = "";
-		for (i = 0; i < tweet.text.length; i++) {
-			switch (tweet.text[i]) {
-			case "\n":
-				html += "<br>";
-				break;
-
-			case " ":
-				html += "&nbsp;";
-				break;
-
-			case "&":
-				html += "&amp;";
-				break;
-
-			case "<":
-				html += "&lt;";
-				break;
-
-			case ">":
-				html += "&gt;";
-				break;
-
-			default:
-				html += tweet.text[i];
-				break;
-			}
-		}
-
-		text.innerHTML = html;
 
 		const imageClear = document.createElement("p");
 		imageClear.className = "image-clear";
 
 		const top = document.createElement("p");
 		top.appendChild(image);
-		top.appendChild(header);
 		top.appendChild(text);
 		top.appendChild(imageClear);
 		resultAppend(top);
 
-		popTweets(tweets, tokenResponse);
+		if (tweet.html) {
+			text.innerHTML = tweet.html;
+			popTweets(tweets, tokenResponse);
+		} else {
+			oembed.then(function(oembedResponse) {
+				if (oembedResponse.html) {
+					text.innerHTML = oembedResponse.html;
+
+					tweet.html_expire = Date.now() + oembedResponse.cache_age;
+					tweet.html = oembedResponse.html;
+
+					const transaction = open.result.transaction("tweets", "readwrite");
+					transaction.onerror = open.onerror;
+					transaction.objectStore("tweets").put(tweet)
+						.onerror = open.onerror;
+				} else {
+					text.textContent = oembedResponse.error;
+				}
+
+				popTweets(tweets, tokenResponse);
+			}, alert);
+		}
 	}
 
 	if (users[tweet.user_id]) {
 		show();
 	} else
-		fetch("https://api.twitter.com/1.1/users/show.json?user_id="
-			+ encodeURI(tweet.user_id), {
-			method: "GET",
-			headers: { "Authorization": "Bearer " + tokenResponse.access_token }
-		}).then(fetchGetJson, alert)
-			.then(function(showResponse) {
-				users[tweet.user_id] = showResponse;
-				show();
-			}, alert);
+		fetchApi("https://api.twitter.com/1.1/users/show.json?user_id="
+			+ encodeURI(tweet.user_id))
+		.then(function(showResponse) {
+			users[tweet.user_id] = showResponse;
+			show();
+		}, alert);
 }
 
 open.onsuccess = function() {
@@ -355,9 +338,8 @@ open.onsuccess = function() {
 open.onupgradeneeded = function() {
 	resultAppendText("Initialized");
 	const progress = resultAppendText("Creating database");
-	store = open.result.createObjectStore("tweets", { autoIncrement : true });
+	store = open.result.createObjectStore("tweets", { keyPath : "tweet_id" });
 	const col = [ { title: "user_id", unique: false },
-		{ title: "tweet_id", unique: true },
 		{ title: "in_reply_to_status_id", unique: false },
 		{ title: "in_reply_to_user_id", unique: false },
 		{ title: "timestamp", unique: false },
@@ -366,7 +348,9 @@ open.onupgradeneeded = function() {
 		{ title: "retweeted_status_id", unique: false },
 		{ title: "retweeted_status_user_id", unique: false },
 		{ title: "retweeted_status_timestamp", unique: false },
-		{ title: "expanded_urls", unique: false }];
+		{ title: "expanded_urls", unique: false },
+		{ title: "html_expire", unique: false },
+		{ title: "html", unique: false }];
 	for (var i = 0; i < col.length; i++) {
 		store.createIndex(col[i].title, col[i].title, { unique: col[i].unique });
 		progress.textContent = "Creating database ("

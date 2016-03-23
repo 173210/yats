@@ -120,7 +120,7 @@ document.getElementById("file").onchange = function() {
 		changeStatusRunning(parseStatus);
 
 		var entry = "";
-		const row = [];
+		var row = [];
 		for (var i = 0; i < csv.length;) {
 			switch (csv[i]) {
 			case ",":

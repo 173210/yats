@@ -17,6 +17,22 @@ window.onerror = function(message) {
 	alert(message);
 }
 
+function resultInit() {
+	document.getElementById("result").innerHTML = "";
+}
+
+function resultAppend(element) {
+	return document.getElementById("result").appendChild(element);
+}
+
+function resultAppendText(text) {
+	element = document.createElement("div");
+	element.textContent = text;
+	return resultAppend(element);
+}
+
+resultAppendText("Initializing");
+
 var token = fetch("https://api.twitter.com/oauth2/token", {
 	method: "POST",
 	headers: {
@@ -240,7 +256,7 @@ function popTweets(tweets, tokenResponse) {
 		var top = document.createElement("p");
 		top.appendChild(header);
 		top.appendChild(text);
-		document.getElementById("result").appendChild(top);
+		resultAppend(top);
 
 		popTweets(tweets, tokenResponse);
 	}
@@ -260,9 +276,11 @@ function popTweets(tweets, tokenResponse) {
 }
 
 open.onsuccess = function() {
+	resultAppendText("Parsing queries");
 	var queries = [];
 	parse(queries, getIteratorOfString(decodeURI(window.location.search.substring(1))), false);
 
+	var progress = resultAppendText("Searching");
 	var tweets = [];
 
 	token.then(fetchGetJson, alert)
@@ -275,11 +293,16 @@ open.onsuccess = function() {
 				var cursor = event.target.result;
 				if (cursor) {
 					var value = cursor.value;
-					if (matchQuery(queries, value.text))
+					if (matchQuery(queries, value.text)) {
 						tweets.push(value);
+						progress.textContent = "Searching (found "
+							+ tweets.length
+							+ " tweets)";
+					}
 
 					cursor.continue();
 				} else {
+					resultInit();
 					popTweets(tweets, tokenResponse);
 				}
 			}
@@ -287,6 +310,8 @@ open.onsuccess = function() {
 }
 
 open.onupgradeneeded = function() {
+	resultAppendText("Initialized");
+	const progress = resultAppendText("Creating database");
 	store = open.result.createObjectStore("tweets", { autoIncrement : true });
 	const col = [ { title: "user_id", unique: false },
 		{ title: "tweet_id", unique: true },
@@ -299,9 +324,12 @@ open.onupgradeneeded = function() {
 		{ title: "retweeted_status_user_id", unique: false },
 		{ title: "retweeted_status_timestamp", unique: false },
 		{ title: "expanded_urls", unique: false }];
-	col.forEach(function(v) {
-		store.createIndex(v.title, v.title, { unique: v.unique });
-	});
+	for (var i = 0; i < col.length; i++) {
+		store.createIndex(col[i].title, col[i].title, { unique: col[i].unique });
+		progress.textContent = "Creating database ("
+			+ Math.round(i / col.length) + "%, "
+			+ i + "/" + col.length + ")";
+	};
 
 	window.location = "import.html";
 }

@@ -237,6 +237,10 @@ function popTweets(tweets, tokenResponse) {
 		const user = users[tweet.user_id];
 		const userUri = "https://twitter.com/" + encodeURI(user.screen_name);
 
+		const image = document.createElement("img");
+		image.className = "image";
+		image.setAttribute("src", user.profile_image_url_https);
+
 		const timestamp = document.createElement("a");
 		timestamp.setAttribute("href", userUri
 			+ "/status/" + encodeURI(tweet.tweet_id));
@@ -257,9 +261,14 @@ function popTweets(tweets, tokenResponse) {
 		text.className = "text";
 		text.textContent = tweet.text;
 
+		const imageClear = document.createElement("p");
+		imageClear.className = "image-clear";
+
 		const top = document.createElement("p");
+		top.appendChild(image);
 		top.appendChild(header);
 		top.appendChild(text);
+		top.appendChild(imageClear);
 		resultAppend(top);
 
 		popTweets(tweets, tokenResponse);

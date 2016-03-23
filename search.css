@@ -1,3 +1,11 @@
+.image {
+	float: left;
+}
+
+.image-clear {
+	clear: left;
+}
+
 .text {
 	margin: 4px;
 }

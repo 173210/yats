@@ -227,8 +227,13 @@ function fetchGetJson(response) {
 
 const users = { };
 
-// WARNING: Asynchronous function
-function popTweets(tweets, tokenResponse) {
+function popTweets(tweets, tokenResponse, event) {
+	if (document.body.scrollTop + document.documentElement.clientHeight
+		< result.offsetTop + result.clientHeight)
+	{
+		return;
+	}
+
 	const tweet = tweets.pop();
 	if (!tweet)
 		return;
@@ -271,7 +276,7 @@ function popTweets(tweets, tokenResponse) {
 
 		if (tweet.html) {
 			text.innerHTML = tweet.html;
-			popTweets(tweets, tokenResponse);
+			window.onscroll(event);
 		} else {
 			oembed.then(function(oembedResponse) {
 				if (oembedResponse.html) {
@@ -288,8 +293,11 @@ function popTweets(tweets, tokenResponse) {
 					text.textContent = oembedResponse.error;
 				}
 
-				popTweets(tweets, tokenResponse);
+				window.onscroll(event);
 			}, alert);
+
+			if (event)
+				event.waitUntil(oembed);
 		}
 	}
 
@@ -332,7 +340,11 @@ open.onsuccess = function() {
 					cursor.continue();
 				} else {
 					resultInit();
-					popTweets(tweets, tokenResponse);
+					window.onscroll = function(event) {
+						popTweets(tweets, tokenResponse, event);
+					}
+
+					window.onscroll();
 				}
 			}
 		});

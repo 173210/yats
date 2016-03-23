@@ -259,7 +259,37 @@ function popTweets(tweets, tokenResponse) {
 
 		const text = document.createElement("p");
 		text.className = "text";
-		text.textContent = tweet.text;
+
+		var html = "";
+		for (i = 0; i < tweet.text.length; i++) {
+			switch (tweet.text[i]) {
+			case "\n":
+				html += "<br>";
+				break;
+
+			case " ":
+				html += "&nbsp;";
+				break;
+
+			case "&":
+				html += "&amp;";
+				break;
+
+			case "<":
+				html += "&lt;";
+				break;
+
+			case ">":
+				html += "&gt;";
+				break;
+
+			default:
+				html += tweet.text[i];
+				break;
+			}
+		}
+
+		text.innerHTML = html;
 
 		const imageClear = document.createElement("p");
 		imageClear.className = "image-clear";

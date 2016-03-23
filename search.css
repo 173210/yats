@@ -7,5 +7,6 @@
 }
 
 .text {
+	overflow: hidden;
 	margin: 4px;
 }

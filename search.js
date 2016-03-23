@@ -33,7 +33,7 @@ function resultAppendText(text) {
 
 resultAppendText("Initializing");
 
-var token = fetch("https://api.twitter.com/oauth2/token", {
+const token = fetch("https://api.twitter.com/oauth2/token", {
 	method: "POST",
 	headers: {
 		"Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
@@ -42,7 +42,7 @@ var token = fetch("https://api.twitter.com/oauth2/token", {
 
 token.catch = alert;
 
-var open = window.indexedDB.open("tweets", 4);
+const open = window.indexedDB.open("tweets", 4);
 
 open.onerror = function(event) {
 	alert(event.target.error);
@@ -53,7 +53,7 @@ function getIteratorOfString(string) {
 		if (this.count >= this.value.length) {
 			return { done: true };
 		} else {
-			var value = this.value[this.count];
+			const value = this.value[this.count];
 			this.count++;
 
 			return { done: false, value: value };
@@ -76,13 +76,13 @@ function parse(destination, iterator, block) {
 	var string = "";
 
 	while (true) {
-		var result = iterator.next();
+		const result = iterator.next();
 		if (result.done || result.value == ")")
 			break;
 
 		switch (result.value) {
 		case " ":
-			var query = { type: getTypeOfQuery(string), value: string };
+			const query = { type: getTypeOfQuery(string), value: string };
 			if (query.type)
 				destination.push(query);
 
@@ -101,7 +101,7 @@ function parse(destination, iterator, block) {
 			if (result.done)
 				iterator = getIteratorOfString(string + iterator.value);
 			else if (string.length > 0) {
-				var query = { type: "STRING", value: string };
+				const query = { type: "STRING", value: string };
 				destination.push(query);
 			}
 
@@ -112,7 +112,7 @@ function parse(destination, iterator, block) {
 			if (string.length > 0) {
 				string += result.value;
 			} else {
-				var query = { type: "BLOCK", value: [ ] };
+				const query = { type: "BLOCK", value: [ ] };
 				parse(query.value, iterator, true);
 				if (query.value.length > 0)
 					destination.push(query);
@@ -122,7 +122,7 @@ function parse(destination, iterator, block) {
 
 		case ")":
 			if (block) {
-				var query = { type: getTypeOfQuery(string), value: string };
+				const query = { type: getTypeOfQuery(string), value: string };
 				if (query.type)
 					destination.push(query);
 
@@ -147,7 +147,7 @@ function parse(destination, iterator, block) {
 		}
 	}
 
-	var query = { type: getTypeOfQuery(string), value: string };
+	const query = { type: getTypeOfQuery(string), value: string };
 	if (query.type)
 		destination.push(query);
 }
@@ -227,33 +227,33 @@ function fetchGetJson(response) {
 	return response.json();
 }
 
-var users = { };
+const users = { };
 
 // WARNING: Asynchronous function
 function popTweets(tweets, tokenResponse) {
-	var tweet = tweets.pop();
+	const tweet = tweets.pop();
 	if (!tweet)
 		return;
 
 	function show() {
-		var user = users[tweet.user_id];
+		const user = users[tweet.user_id];
 
-		var timestamp = document.createElement("a");
+		const timestamp = document.createElement("a");
 		timestamp.setAttribute("href", "https://twitter.com/"
 			+ encodeURI(user.screen_name)
 			+ "/statuses/" + encodeURI(tweet.tweet_id));
 		timestamp.textContent = tweet.retweeted_status_timestamp.length > 0 ?
 			tweet.retweeted_status_timestamp : tweet.timestamp;
 
-		var header = document.createElement("div");
+		const header = document.createElement("div");
 		header.textContent = user.name + " @" + user.screen_name + " \u00B7 ";
 		header.appendChild(timestamp);
 
-		var text = document.createElement("p");
+		const text = document.createElement("p");
 		text.className = "text";
 		text.textContent = tweet.text;
 
-		var top = document.createElement("p");
+		const top = document.createElement("p");
 		top.appendChild(header);
 		top.appendChild(text);
 		resultAppend(top);
@@ -277,11 +277,11 @@ function popTweets(tweets, tokenResponse) {
 
 open.onsuccess = function() {
 	resultAppendText("Parsing queries");
-	var queries = [];
+	const queries = [];
 	parse(queries, getIteratorOfString(decodeURI(window.location.search.substring(1))), false);
 
-	var progress = resultAppendText("Searching");
-	var tweets = [];
+	const progress = resultAppendText("Searching");
+	const tweets = [];
 
 	token.then(fetchGetJson, alert)
 		.then(function(tokenResponse) {
@@ -290,9 +290,9 @@ open.onsuccess = function() {
 				.openCursor()
 				.onsuccess = function(event)
 			{
-				var cursor = event.target.result;
+				const cursor = event.target.result;
 				if (cursor) {
-					var value = cursor.value;
+					const value = cursor.value;
 					if (matchQuery(queries, value.text)) {
 						tweets.push(value);
 						progress.textContent = "Searching (found "

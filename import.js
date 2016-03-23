@@ -17,7 +17,7 @@ window.onerror = function(message) {
 	alert(message);
 }
 
-var open = window.indexedDB.open("tweets", 4);
+const open = window.indexedDB.open("tweets", 4);
 var openDone = false;
 
 function showError(event) {
@@ -43,15 +43,14 @@ open.onsuccess = function() {
 }
 
 document.getElementById("file").onchange = function() {
-	var file = this;
-	file.disabled = true;
+	this.disabled = true;
 
-	var reader = new FileReader();
+	const reader = new FileReader();
 
 	reader.onerror = showError;
 
-	var readerProgress = document.getElementById("reader-progress");
-	var readerStatus = document.getElementById("reader-status");
+	const readerProgress = document.getElementById("reader-progress");
+	const readerStatus = document.getElementById("reader-status");
 
 	reader.onloadstart = function() {
 		changeStatusRunning(readerStatus);
@@ -66,33 +65,33 @@ document.getElementById("file").onchange = function() {
 		}
 	}
 
-	var rows = [];
+	const rows = [];
 
 	window.onmessage = function(event) {
 		open.onsuccess = function() {
-			var storeProgress = document.getElementById("store-progress");
-			var storeStatus = document.getElementById("store-status");
+			const storeProgress = document.getElementById("store-progress");
+			const storeStatus = document.getElementById("store-status");
 			changeStatusRunning(storeStatus);
 
-			var store = open.result
+			const store = open.result
 				.transaction("tweets", "readwrite")
 				.objectStore("tweets");
-			var text = document.createElement("textarea");
+			const text = document.createElement("textarea");
 
 			stored = 1;
-			for (i = 1; i < rows.length; i++) {
-				var object = { user_id: event.data.id };
+			for (var i = 1; i < rows.length; i++) {
+				const object = { user_id: event.data.id };
 				for (var j = 0; j < rows[i].length; j++) {
 					text.innerHTML = rows[i][j];
 					object[rows[0][j]] = text.value;
 					}
 
-				var request = store.add(object);
+				const request = store.add(object);
 				request.onerror = showError;
 				request.onsuccess = function() {
 					stored++;
 					if (stored >= rows.length) {
-						var doneStatus = document.getElementById("done-status");
+						const doneStatus = document.getElementById("done-status");
 						changeStatusRunning(doneStatus);
 						changeStatus(doneStatus,
 						"Done (Type \"tweets\" in the omnibox and press tab to search tweets)");
@@ -113,17 +112,17 @@ document.getElementById("file").onchange = function() {
 
 	reader.onload = function(event) {
 		reader.onprogress(event);
-		var zip = new JSZip(this.result);
+		const zip = new JSZip(this.result);
 
 		changeStatusRunning(document.getElementById("csv-status"));
-		var csv = zip.file("tweets.csv").asText();
+		const csv = zip.file("tweets.csv").asText();
 
-		var parseProgress = document.getElementById("parse-progress");
-		var parseStatus = document.getElementById("parse-status");
+		const parseProgress = document.getElementById("parse-progress");
+		const parseStatus = document.getElementById("parse-status");
 		changeStatusRunning(parseStatus);
 
 		var entry = "";
-		var row = [];
+		const row = [];
 		for (var i = 0; i < csv.length;) {
 			switch (csv[i]) {
 			case ",":

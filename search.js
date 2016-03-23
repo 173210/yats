@@ -303,13 +303,14 @@ function popTweets(tweets, tokenResponse, event) {
 
 	if (users[tweetOriginUserId]) {
 		show();
-	} else
+	} else {
 		fetchApi("https://api.twitter.com/1.1/users/show.json?user_id="
 			+ encodeURI(tweetOriginUserId))
 		.then(function(showResponse) {
 			users[tweetOriginUserId] = showResponse;
 			show();
 		}, alert);
+	}
 }
 
 open.onsuccess = function() {

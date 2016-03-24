@@ -72,6 +72,8 @@ function getTypeOfQuery(string) {
 		return null;
 	else if (string == "OR")
 		return "OPCODE";
+	else if (string == "RT")
+		return "SPECIAL";
 	else
 		return "STRING";
 }
@@ -232,6 +234,16 @@ function matchRange(range, value) {
 	}
 }
 
+function matchSpecial(query, value) {
+	switch (query) {
+	case "RT":
+		return value.retweeted_status_id ? true : false;
+
+	default:
+		throw "Internal error: unexpected query";
+	}
+}
+
 function matchString(string, value) {
 	return value.text.toUpperCase().indexOf(string.toUpperCase()) >= 0;
 }
@@ -245,6 +257,10 @@ function matchQuery(queries, value) {
 		switch (query.type) {
 		case "RANGE":
 			cur = matchRange(query.value, value);
+			break;
+
+		case "SPECIAL":
+			cur = matchSpecial(query.value, value);
 			break;
 
 		case "STRING":

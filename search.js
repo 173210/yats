@@ -82,6 +82,12 @@ function parse(iterator, block) {
 		word = "";
 	}
 
+	function finalizeWord() {
+		const type = getTypeOfQuery(word);
+		if (type)
+			queries.push({ type: type, value: word });
+	}
+
 	initializeWord();
 	while (true) {
 		var result = iterator.next();
@@ -90,10 +96,7 @@ function parse(iterator, block) {
 
 		switch (result.value) {
 		case " ":
-			const type = getTypeOfQuery(word);
-			if (type)
-				queries.push({ type: type, value: word });
-
+			finalizeWord();
 			initializeWord();
 			break;
 
@@ -132,10 +135,7 @@ function parse(iterator, block) {
 
 		case ")":
 			if (block) {
-				const query = { type: getTypeOfQuery(word), value: word };
-				if (query.type)
-					queries.push(query);
-
+				finalizeWord();
 				return queries;
 			} else {
 				word += result.value;
@@ -196,10 +196,7 @@ function parse(iterator, block) {
 		}
 	}
 
-	const type = getTypeOfQuery(word);
-	if (type)
-		queries.push({ type: type, value: word });
-
+	finalizeWord();
 	return queries;
 }
 

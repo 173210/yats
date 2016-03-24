@@ -1,3 +1,5 @@
+![Coverity Scan Badge](https://scan.coverity.com/projects/8344/badge.svg)
+
 #Standards
 This extension should follow the following standards:
 

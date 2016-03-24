@@ -75,10 +75,6 @@ function getTypeOfQuery(string) {
 		case "OR":
 			return "OPCODE";
 
-		case "REPLY":
-		case "RT":
-			return "SPECIAL";
-
 		default:
 			return "STRING";
 		}
@@ -165,46 +161,6 @@ function parseQuery(iterator, block) {
 
 			break;
 
-		case "<":
-		case "=":
-		case ">":
-			word += result.value;
-			if (word.length > 1)
-				break;
-
-			op = result.value;
-			result = iterator.next();
-			if (result.done)
-				break;
-
-			if (result.value == '=') {
-				op += value;
-				result = iterator.next();
-			}
-
-			dateString = "";
-			while (true) {
-				if (result.done || result.value == " ")
-					break;
-				else
-					dateString += result.value;
-
-				result = iterator.next();
-			}
-
-			const date = new Date(dateString);
-			if (!date) {
-				continueWord(op[2] ?
-					op[2] + dateString : dateString);
-
-				break;
-			}
-
-			queries.push({ type: "RANGE", value: { op: op, date: date } });
-
-			initializeWord();
-			break;
-
 		default:
 			word += result.value;
 			break;
@@ -215,72 +171,17 @@ function parseQuery(iterator, block) {
 	return queries;
 }
 
-function parseUri() {
-	for (option of window.location.search.substring(1).split("&")) {
-		matched = option.match(/^q=(.*)/);
-		if (matched)
-			return decodeURIComponent(matched[1]);
-	}
-}
-
-function matchRange(range, value) {
-	const left = value.timestamp;
-	const right = range.date;
-
-	switch (range.op) {
-	case "<":
-		return left < right;
-
-	case "<=":
-		return left <= right;
-
-	case "=":
-	case "==":
-		return left == right;
-
-	case ">":
-		return left > right;
-
-	case ">=":
-		return left >= right;
-
-	default:
-		return false;
-	}
-}
-
-function matchSpecial(query, value) {
-	switch (query) {
-	case "REPLY":
-		return value.in_reply_to_user_id ? true: false;
-
-	case "RT":
-		return value.retweeted_status_id ? true : false;
-
-	default:
-		throw "Internal error: unexpected query";
-	}
-}
-
 function matchString(string, value) {
 	return value.text.toUpperCase().indexOf(string.toUpperCase()) >= 0;
 }
 
-function matchQuery(queries, value) {
+function matchQuery(value, queries) {
 	var r;
 	var opcode = null;
 	queries.some(function(query) {
 		var cur;
 
 		switch (query.type) {
-		case "RANGE":
-			cur = matchRange(query.value, value);
-			break;
-
-		case "SPECIAL":
-			cur = matchSpecial(query.value, value);
-			break;
-
 		case "STRING":
 			cur = matchString(query.value, value);
 			break;
@@ -295,7 +196,7 @@ function matchQuery(queries, value) {
 			break;
 
 		case "BLOCK":
-			cur = matchQuery(query.value, value);
+			cur = matchQuery(value, query.value);
 			break;
 
 		default:
@@ -343,6 +244,19 @@ function matchQuery(queries, value) {
 	});
 
 	return r;
+}
+
+function matchAll(value, query) {
+	const formAfterValue = document.getElementById("form-after").value;
+	const formBeforeValue = document.getElementById("form-before").value;
+	const formReplyIsChecked = document.getElementById("form-reply").checked;
+	const formRtIsChecked = document.getElementById("form-rt").checked;
+
+	return (!formAfterValue || new Date(formAfterValue) <= value.timestamp)
+		&& (!formBeforeValue || new Date(formBeforeValue) >= value.timestamp)
+		&& (!formReplyIsChecked || value.in_reply_to_user_id)
+		&& (!formRtIsChecked || value.retweeted_status_id)
+		&& matchQuery(value, query);
 }
 
 var last;
@@ -454,11 +368,6 @@ function chainGetUserObjectsContainer(users, tweets, token) {
 	chainGetUserObjects(users);
 }
 
-var openDone = false;
-open.onsuccess = function() {
-	openDone = true;
-}
-
 open.onsuccess = function() {
 	const progress = resultAppendText("Searching");
 	const users = [];
@@ -473,7 +382,7 @@ open.onsuccess = function() {
 			const cursor = event.target.result;
 			if (cursor) {
 				const value = cursor.value;
-				if (matchQuery(query, value)) {
+				if (matchAll(value, query)) {
 					tweets.push(value);
 
 					const user = getTweetOriginUserId(value);
@@ -524,6 +433,34 @@ open.onupgradeneeded = function() {
 	token.then(move, move);
 }
 
-const rawQuery = parseUri();
-const query = parseQuery(getIteratorOfString(rawQuery, false));
-document.getElementById("query").value = rawQuery;
+var query;
+for (option of window.location.search.substring(1).split("&")) {
+	matched = option.match(/^(.*?)=(.*)/);
+	switch (matched[1]) {
+	case "after":
+		document.getElementById("form-after").value
+			= decodeURIComponent(matched[2]);
+		break;
+
+	case "before":
+		document.getElementById("form-before").value
+			= decodeURIComponent(matched[2]);
+		break;
+
+	case "q":
+		const rawQuery = decodeURIComponent(matched[2]);
+		query = parseQuery(getIteratorOfString(rawQuery, false));
+		document.getElementById("form-query").value = rawQuery;
+		break;
+
+	case "reply":
+		document.getElementById("form-reply").checked
+			= matched[2] == "on";
+		break;
+
+	case "rt":
+		document.getElementById("form-rt").checked
+			= matched[2] == "on";
+		break;
+	}
+}

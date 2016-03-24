@@ -70,99 +70,182 @@ function getTypeOfQuery(string) {
 		return "STRING";
 }
 
-function parse(destination, iterator, block) {
-	var string = "";
+function parse(iterator, block) {
+	const queries = [];
+	var word;
 
+	function continueWord(from) {
+		iterator = getIteratorOfString(from + iterator.value);
+	}
+
+	function initializeWord() {
+		word = "";
+	}
+
+	initializeWord();
 	while (true) {
-		const result = iterator.next();
+		var result = iterator.next();
 		if (result.done || result.value == ")")
 			break;
 
 		switch (result.value) {
 		case " ":
-			const query = { type: getTypeOfQuery(string), value: string };
-			if (query.type)
-				destination.push(query);
+			const type = getTypeOfQuery(word);
+			if (type)
+				queries.push({ type: type, value: word });
 
-			string = "";
+			initializeWord();
 			break;
 
 		case "\"":
+			var quoted = "";
 			while (true) {
 				result = iterator.next();
 				if (result.done || result.value == "\"")
 					break;
 				else
-					string += result.value;
+					quoted += result.value;
 			}
 
-			if (result.done)
-				iterator = getIteratorOfString(string + iterator.value);
-			else if (string.length > 0) {
-				const query = { type: "STRING", value: string };
-				destination.push(query);
+			if (result.done) {
+				word += "\"";
+				continueWord(quoted);
+			} else if (word.length > 0) {
+				const query = { type: "STRING", value: word + quoted };
+				queries.push(query);
+				initializeWord();
 			}
 
-			string = "";
 			break;
 
 		case "(":
-			if (string.length > 0) {
-				string += result.value;
+			if (word.length > 0) {
+				word += result.value;
 			} else {
-				const query = { type: "BLOCK", value: [ ] };
-				parse(query.value, iterator, true);
-				if (query.value.length > 0)
-					destination.push(query);
+				const query = { type: "BLOCK" };
+				query.value = parse(iterator, true);
+				if (query.value)
+					queries.push(query);
 			}
 
 			break;
 
 		case ")":
 			if (block) {
-				const query = { type: getTypeOfQuery(string), value: string };
+				const query = { type: getTypeOfQuery(word), value: word };
 				if (query.type)
-					destination.push(query);
+					queries.push(query);
 
-				return;
+				return queries;
 			} else {
-				string += result.value;
+				word += result.value;
 				break;
 			}
 
 		case "-":
-			if (string.length > 0) {
-				string += result.value;
+			if (word.length > 0)
+				word += result.value;
+			else
+				queries.push({ type: "OPCODE", value: "NOT" });
+
+			break;
+
+		case "<":
+		case "=":
+		case ">":
+			word += result.value;
+			if (word.length > 1)
 				break;
-			} else {
-				destination.push({ type: "OPCODE", value: "NOT" });
+
+			op = result.value;
+			result = iterator.next();
+			if (result.done)
+				break;
+
+			if (result.value == '=') {
+				op += value;
+				result = iterator.next();
+			}
+
+			dateString = "";
+			while (true) {
+				if (result.done || result.value == " ")
+					break;
+				else
+					dateString += result.value;
+
+				result = iterator.next();
+			}
+
+			const date = new Date(dateString);
+			if (!date) {
+				continueWord(op[2] ?
+					op[2] + dateString : dateString);
+
 				break;
 			}
 
+			queries.push({ type: "RANGE", value: { op: op, date: date } });
+
+			initializeWord();
+			break;
+
 		default:
-			string += result.value;
+			word += result.value;
 			break;
 		}
 	}
 
-	const query = { type: getTypeOfQuery(string), value: string };
-	if (query.type)
-		destination.push(query);
+	const type = getTypeOfQuery(word);
+	if (type)
+		queries.push({ type: type, value: word });
+
+	return queries;
 }
 
-function matchString(string, text) {
-	return text.toUpperCase().indexOf(string.toUpperCase()) >= 0;
+function matchRange(range, value) {
+	const left = value.timestamp;
+	const right = range.date;
+
+	switch (range.op) {
+	case "<":
+		return left < right;
+
+	case "<=":
+		return left <= right;
+
+	case "=":
+	case "==":
+		return left == right;
+
+	case ">":
+		return left > right;
+
+	case ">=":
+		return left >= right;
+
+	default:
+		return false;
+	}
 }
 
-function matchQuery(queries, text) {
+function matchString(string, value) {
+	return value.text.toUpperCase().indexOf(string.toUpperCase()) >= 0;
+}
+
+function matchQuery(queries, value) {
 	var r;
 	var opcode = null;
 	queries.some(function(query) {
 		var cur;
 
 		switch (query.type) {
+		case "RANGE":
+			cur = matchRange(query.value, value);
+			break;
+
 		case "STRING":
-			cur = matchString(query.value, text);
+			cur = matchString(query.value, value);
 			break;
 
 		case "OPCODE":
@@ -175,7 +258,7 @@ function matchQuery(queries, text) {
 			break;
 
 		case "BLOCK":
-			cur = matchQuery(query.value, text);
+			cur = matchQuery(query.value, value);
 			break;
 
 		default:
@@ -192,7 +275,7 @@ function matchQuery(queries, text) {
 				break;
 
 			case "OR":
-				r = matchString(opcode, text) && cur;
+				r = matchString(opcode, value) && cur;
 				break;
 
 			case "NOT":
@@ -318,8 +401,7 @@ function popTweets(tweets, tokenResponse) {
 
 open.onsuccess = function() {
 	resultAppendText("Parsing queries");
-	const queries = [];
-	parse(queries, getIteratorOfString(decodeURI(window.location.search.substring(1))), false);
+	const queries = parse(getIteratorOfString(decodeURI(window.location.search.substring(1))), false);
 
 	const progress = resultAppendText("Searching");
 	const tweets = [];
@@ -334,7 +416,7 @@ open.onsuccess = function() {
 				const cursor = event.target.result;
 				if (cursor) {
 					const value = cursor.value;
-					if (matchQuery(queries, value.text)) {
+					if (matchQuery(queries, value)) {
 						tweets.push(value);
 						progress.textContent = "Searching (found "
 							+ tweets.length

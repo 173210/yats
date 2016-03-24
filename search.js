@@ -374,13 +374,9 @@ function chainShowTweets(users, tweets) {
 	const text = document.createElement("span");
 	text.className = "text";
 
-	const imageClear = document.createElement("p");
-	imageClear.className = "image-clear";
-
 	const top = document.createElement("p");
 	top.appendChild(image);
 	top.appendChild(text);
-	top.appendChild(imageClear);
 	last = resultAppend(top);
 
 	if (tweet.html) {

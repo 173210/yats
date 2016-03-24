@@ -17,6 +17,6 @@ chrome.omnibox.setDefaultSuggestion({ description: 'Search your tweets' });
 
 chrome.omnibox.onInputEntered.addListener(function(text) {
 	chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-		chrome.tabs.update(tabs[0].id, { url: "search.html?" + text });
+		chrome.tabs.update(tabs[0].id, { url: "search.html?q=" + text });
 	});
 });

@@ -40,7 +40,7 @@ const token = fetch("https://api.twitter.com/oauth2/token", {
 
 token.catch(alert);
 
-const open = window.indexedDB.open("tweets", 4);
+const open = window.indexedDB.open("tweets", 1);
 
 open.onerror = function(event) {
 	alert(event.target.error);
@@ -251,7 +251,7 @@ function popTweets(tweets, tokenResponse) {
 	}
 
 	function show() {
-		if (tweet.html_expire < Date.now())
+		if (tweet.html_expire < new Date())
 			tweet.html = undefined;
 
 		var oembed;
@@ -284,7 +284,7 @@ function popTweets(tweets, tokenResponse) {
 				if (oembedResponse.html) {
 					text.innerHTML = oembedResponse.html;
 
-					tweet.html_expire = Date.now() + oembedResponse.cache_age;
+					tweet.html_expire = new Date(Date.now() + oembedResponse.cache_age);
 					tweet.html = oembedResponse.html;
 
 					const transaction = open.result.transaction("tweets", "readwrite");

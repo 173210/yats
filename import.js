@@ -15,7 +15,7 @@
 
 window.onerror = alert;
 
-const open = window.indexedDB.open("tweets", 4);
+const open = window.indexedDB.open("tweets", 1);
 var openDone = false;
 
 function showError(event) {
@@ -83,6 +83,25 @@ document.getElementById("file").onchange = function() {
 					text.innerHTML = rows[i][j];
 					object[rows[0][j]] = text.value;
 					}
+
+				function deleteFalseInObject(key) {
+					if (!object[key])
+						delete object[key];
+				}
+
+				function newDateInObject(key) {
+					if (object[key])
+						object[key] = new Date(object[key]);
+				}
+
+				deleteFalseInObject("in_reply_to_status_id");
+				deleteFalseInObject("in_reply_to_user_id");
+				deleteFalseInObject("retweeted_status_id");
+				deleteFalseInObject("retweeted_status_user_id");
+				deleteFalseInObject("retweeted_status_timestamp");
+
+				newDateInObject("timestamp");
+				newDateInObject("retweeted_status_timestamp");
 
 				const request = store.add(object);
 				request.onerror = showError;

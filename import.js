@@ -89,6 +89,11 @@ document.getElementById("file").onchange = function() {
 						delete object[key];
 				}
 
+				function parseIntInObject(key) {
+					if (object[key])
+						object[key] = parseInt(object[key]);
+				}
+
 				function newDateInObject(key) {
 					if (object[key])
 						object[key] = new Date(object[key]);
@@ -99,6 +104,10 @@ document.getElementById("file").onchange = function() {
 				deleteFalseInObject("retweeted_status_id");
 				deleteFalseInObject("retweeted_status_user_id");
 				deleteFalseInObject("retweeted_status_timestamp");
+
+				parseIntInObject("user_id");
+				parseIntInObject("in_reply_to_user_id");
+				parseIntInObject("retweeted_status_user_id");
 
 				newDateInObject("timestamp");
 				newDateInObject("retweeted_status_timestamp");

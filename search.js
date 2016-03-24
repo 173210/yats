@@ -403,7 +403,7 @@ function chainGetUserObjectsContainer(users, tweets, token) {
 		}
 
 		const request = fetchJson("https://api.twitter.com/1.1/users/lookup.json?user_id="
-					+ encodeURI(left.slice(-max).join(",")), {
+					+ left.slice(-max).join(","), {
 				method: "POST",
 				headers: { "Authorization": "Bearer " + token }
 			});
@@ -415,7 +415,7 @@ function chainGetUserObjectsContainer(users, tweets, token) {
 
 		request.then(function(response) {
 			for (user of response)
-				userObjects[user.id_str] = user.profile_image_url_https;
+				userObjects[user.id] = user.profile_image_url_https;
 
 			chainGetUserObjects(left);
 		});

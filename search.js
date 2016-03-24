@@ -219,7 +219,7 @@ function parseUri() {
 	for (option of window.location.search.substring(1).split("&")) {
 		matched = option.match(/^q=(.*)/);
 		if (matched)
-			return decodeURI(matched[1]);
+			return decodeURIComponent(matched[1]);
 	}
 }
 
@@ -372,7 +372,7 @@ function chainShowTweets(users, tweets) {
 	var oembed;
 	if (!tweet.html) {
 		oembed = fetchJson("https://api.twitter.com/1/statuses/oembed.json?omit_script=true&id="
-			+ encodeURI(tweet.tweet_id), { method: "GET" });
+			+ encodeURIComponent(tweet.tweet_id), { method: "GET" });
 	}
 
 	const image = document.createElement("img");

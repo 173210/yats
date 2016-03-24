@@ -1,3 +1,7 @@
+.sidebar {
+	max-width: 256px;
+}
+
 .sidebar,.image {
 	float: left;
 }

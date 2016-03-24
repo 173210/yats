@@ -150,6 +150,10 @@ function parse(destination, iterator, block) {
 		destination.push(query);
 }
 
+function matchString(string, text) {
+	return text.toUpperCase().indexOf(string.toUpperCase()) >= 0;
+}
+
 function matchQuery(queries, text) {
 	var r;
 	var opcode = null;
@@ -158,7 +162,7 @@ function matchQuery(queries, text) {
 
 		switch (query.type) {
 		case "STRING":
-			cur = text.indexOf(query.value) >= 0;
+			cur = matchString(query.value, text);
 			break;
 
 		case "OPCODE":
@@ -188,7 +192,7 @@ function matchQuery(queries, text) {
 				break;
 
 			case "OR":
-				r = text.indexOf(opcode) >= 0 && cur;
+				r = matchString(opcode, text) && cur;
 				break;
 
 			case "NOT":

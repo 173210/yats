@@ -1,6 +1,16 @@
 #Why Is It Chrome Extension?
 Because Twitter API doesn't support CORS. Blame Twitter.
 
+#Hey, I can't build your extension. UglifyJS2 fails.
+Because [UglifyJS2 doesn't support ECMAScrpit 6 Harmony yet.](https://github.com/mishoo/UglifyJS2/issues/448)
+
+You have two options:
+* Specify `NO_UGLIFY`
+
+Note that the bearer token will be more vulnerable.
+
+* Use `harmony` branch in UglifyJS2.
+
 #LICENSE
     Copyright (C) 2016  173210 <root.3.173210@live.com>
 

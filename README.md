@@ -1,3 +1,12 @@
+#Standards
+This extension should follow the following standards:
+
+* [ECMAScript 6.0](http://www.ecma-international.org/ecma-262/6.0/index.html)
+
+* [HTML5](https://www.w3.org/TR/html5/)
+
+* [Fetch](https://fetch.spec.whatwg.org/)
+
 #Why Is It Chrome Extension?
 Because Twitter API doesn't support CORS. Blame Twitter.
 

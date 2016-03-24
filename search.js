@@ -70,12 +70,19 @@ function getIteratorOfString(string) {
 function getTypeOfQuery(string) {
 	if (string.length <= 0)
 		return null;
-	else if (string == "OR")
-		return "OPCODE";
-	else if (string == "RT")
-		return "SPECIAL";
-	else
-		return "STRING";
+	else {
+		switch (string) {
+		case "OR":
+			return "OPCODE";
+
+		case "REPLY":
+		case "RT":
+			return "SPECIAL";
+
+		default:
+			return "STRING";
+		}
+	}
 }
 
 function parse(iterator, block) {
@@ -236,6 +243,9 @@ function matchRange(range, value) {
 
 function matchSpecial(query, value) {
 	switch (query) {
+	case "REPLY":
+		return value.in_reply_to_user_id ? true: false;
+
 	case "RT":
 		return value.retweeted_status_id ? true : false;
 

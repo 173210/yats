@@ -1,7 +1,7 @@
-.image {
+.sidebar,.image {
 	float: left;
 }
 
-.twitter-tweet {
+.result,.twitter-tweet {
 	overflow: hidden;
 }

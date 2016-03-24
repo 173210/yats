@@ -85,7 +85,7 @@ function getTypeOfQuery(string) {
 	}
 }
 
-function parse(iterator, block) {
+function parseQuery(iterator, block) {
 	const queries = [];
 	var word;
 
@@ -141,7 +141,7 @@ function parse(iterator, block) {
 				word += result.value;
 			} else {
 				const query = { type: "BLOCK" };
-				query.value = parse(iterator, true);
+				query.value = parseQuery(iterator, true);
 				if (query.value)
 					queries.push(query);
 			}
@@ -213,6 +213,14 @@ function parse(iterator, block) {
 
 	finalizeWord();
 	return queries;
+}
+
+function parseUri() {
+	for (option of window.location.search.substring(1).split("&")) {
+		matched = option.match(/^q=(.*)/);
+		if (matched)
+			return decodeURI(matched[1]);
+	}
 }
 
 function matchRange(range, value) {
@@ -446,10 +454,12 @@ function chainGetUserObjectsContainer(users, tweets, token) {
 	chainGetUserObjects(users);
 }
 
+var openDone = false;
 open.onsuccess = function() {
-	resultAppendText("Parsing queries");
-	const queries = parse(getIteratorOfString(decodeURI(window.location.search.substring(1))), false);
+	openDone = true;
+}
 
+open.onsuccess = function() {
 	const progress = resultAppendText("Searching");
 	const users = [];
 	const tweets = [];
@@ -463,7 +473,7 @@ open.onsuccess = function() {
 			const cursor = event.target.result;
 			if (cursor) {
 				const value = cursor.value;
-				if (matchQuery(queries, value)) {
+				if (matchQuery(query, value)) {
 					tweets.push(value);
 
 					const user = getTweetOriginUserId(value);
@@ -513,3 +523,7 @@ open.onupgradeneeded = function() {
 
 	token.then(move, move);
 }
+
+const rawQuery = parseUri();
+const query = parseQuery(getIteratorOfString(rawQuery, false));
+document.getElementById("query").value = rawQuery;

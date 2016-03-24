@@ -82,7 +82,7 @@ document.getElementById("file").onchange = function() {
 				for (var j = 0; j < rows[i].length; j++) {
 					text.innerHTML = rows[i][j];
 					object[rows[0][j]] = text.value;
-					}
+				}
 
 				function deleteFalseInObject(key) {
 					if (!object[key])

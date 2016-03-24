@@ -31,7 +31,13 @@ function resultAppendText(text) {
 
 resultAppendText("Initializing");
 
-const token = fetch("https://api.twitter.com/oauth2/token", {
+function fetchJson(input, init) {
+	return fetch(input, init).then(function(response) {
+		return response.json();
+	}, alert);
+}
+
+const token = fetchJson("https://api.twitter.com/oauth2/token", {
 	method: "POST",
 	headers: {
 		"Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
@@ -305,14 +311,14 @@ function matchQuery(queries, value) {
 	return r;
 }
 
-function fetchGetJson(response) {
-	return response.json();
-}
-
-const users = { };
 var last;
 
-function popTweets(tweets, tokenResponse) {
+function getTweetOriginUserId(tweet) {
+	return tweet.retweeted_status_user_id ?
+		tweet.retweeted_status_user_id : tweet.user_id;
+}
+
+function chainShowTweets(users, tweets) {
 	if (last &&
 		document.body.scrollTop + document.documentElement.clientHeight
 			< last.offsetTop + last.clientHeight)
@@ -324,76 +330,98 @@ function popTweets(tweets, tokenResponse) {
 	if (!tweet)
 		return;
 
-	const tweetOriginUserId = tweet.retweeted_status_user_id ?
-		tweet.retweeted_status_user_id : tweet.user_id;
+	const tweetOriginUserId = getTweetOriginUserId(tweet);
 
-	function fetchApi(uri) {
-		return fetch(uri, {
-				method: "GET",
-				headers: { "Authorization": "Bearer " + tokenResponse.access_token }
-			}).then(fetchGetJson, alert);
+	if (tweet.html_expire < new Date())
+		tweet.html = undefined;
+
+	var oembed;
+	if (!tweet.html) {
+		oembed = fetchJson("https://api.twitter.com/1/statuses/oembed.json?omit_script=true&id="
+			+ encodeURI(tweet.tweet_id), { method: "GET" });
 	}
 
-	function show() {
-		if (tweet.html_expire < new Date())
-			tweet.html = undefined;
+	const image = document.createElement("img");
+	image.className = "image";
+	image.setAttribute("src", users[tweetOriginUserId]);
 
-		var oembed;
-		if (!tweet.html) {
-			oembed = fetchApi("https://api.twitter.com/1/statuses/oembed.json?omit_script=true&id="
-				+ encodeURI(tweet.tweet_id));
-		}
+	const text = document.createElement("span");
+	text.className = "text";
 
-		const image = document.createElement("img");
-		image.className = "image";
-		image.setAttribute("src", users[tweetOriginUserId].profile_image_url_https);
+	const imageClear = document.createElement("p");
+	imageClear.className = "image-clear";
 
-		const text = document.createElement("span");
-		text.className = "text";
+	const top = document.createElement("p");
+	top.appendChild(image);
+	top.appendChild(text);
+	top.appendChild(imageClear);
+	last = resultAppend(top);
 
-		const imageClear = document.createElement("p");
-		imageClear.className = "image-clear";
-
-		const top = document.createElement("p");
-		top.appendChild(image);
-		top.appendChild(text);
-		top.appendChild(imageClear);
-		last = resultAppend(top);
-
-		if (tweet.html) {
-			text.innerHTML = tweet.html;
-			window.onscroll();
-		} else {
-			oembed.then(function(oembedResponse) {
-				if (oembedResponse.html) {
-					text.innerHTML = oembedResponse.html;
-
-					tweet.html_expire = new Date(Date.now() + oembedResponse.cache_age);
-					tweet.html = oembedResponse.html;
-
-					const transaction = open.result.transaction("tweets", "readwrite");
-					transaction.onerror = open.onerror;
-					transaction.objectStore("tweets").put(tweet)
-						.onerror = open.onerror;
-				} else {
-					text.textContent = oembedResponse.error;
-				}
-
-				window.onscroll();
-			}, alert);
-		}
-	}
-
-	if (users[tweetOriginUserId]) {
-		show();
+	if (tweet.html) {
+		text.innerHTML = tweet.html;
+		window.onscroll();
 	} else {
-		fetchApi("https://api.twitter.com/1.1/users/show.json?user_id="
-			+ encodeURI(tweetOriginUserId))
-		.then(function(showResponse) {
-			users[tweetOriginUserId] = showResponse;
-			show();
+		oembed.then(function(oembedResponse) {
+			if (oembedResponse.html) {
+				text.innerHTML = oembedResponse.html;
+
+				tweet.html_expire = new Date(Date.now() + oembedResponse.cache_age);
+				tweet.html = oembedResponse.html;
+
+				const transaction = open.result.transaction("tweets", "readwrite");
+				transaction.onerror = open.onerror;
+				transaction.objectStore("tweets").put(tweet)
+					.onerror = open.onerror;
+			} else {
+				text.textContent = oembedResponse.error;
+			}
+
+			window.onscroll();
 		}, alert);
 	}
+}
+
+function chainInitializeResult(users, tweets) {
+	resultInit();
+	window.onscroll = function() {
+		result.style.height = last.offsetTop + last.clientHeight + tweets.length * 40 + "px";
+		chainShowTweets(users, tweets);
+	}
+
+	chainShowTweets(users, tweets);
+}
+
+function chainGetUserObjectsContainer(users, tweets, token) {
+	const userObjects = [];
+
+	function chainGetUserObjects(left) {
+		const max = 100;
+
+		if (left.length <= 0) {
+			chainInitializeResult(userObjects, tweets);
+			return;
+		}
+
+		const request = fetchJson("https://api.twitter.com/1.1/users/lookup.json?user_id="
+					+ encodeURI(left.slice(-max).join(",")), {
+				method: "POST",
+				headers: { "Authorization": "Bearer " + token }
+			});
+
+		if (left.length > max)
+			left.length -= max;
+		else
+			left.length = 0;
+
+		request.then(function(response) {
+			for (user of response)
+				userObjects[user.id_str] = user.profile_image_url_https;
+
+			chainGetUserObjects(left);
+		});
+	}
+
+	chainGetUserObjects(users);
 }
 
 open.onsuccess = function() {
@@ -401,37 +429,37 @@ open.onsuccess = function() {
 	const queries = parse(getIteratorOfString(decodeURI(window.location.search.substring(1))), false);
 
 	const progress = resultAppendText("Searching");
+	const users = [];
 	const tweets = [];
 
-	token.then(fetchGetJson, alert)
-		.then(function(tokenResponse) {
-			open.result.transaction("tweets", "readonly")
-				.objectStore("tweets")
-				.openCursor()
-				.onsuccess = function(event)
-			{
-				const cursor = event.target.result;
-				if (cursor) {
-					const value = cursor.value;
-					if (matchQuery(queries, value)) {
-						tweets.push(value);
-						progress.textContent = "Searching (found "
-							+ tweets.length
-							+ " tweets)";
-					}
+	token.then(function(response) {
+		open.result.transaction("tweets", "readonly")
+			.objectStore("tweets")
+			.openCursor()
+			.onsuccess = function(event)
+		{
+			const cursor = event.target.result;
+			if (cursor) {
+				const value = cursor.value;
+				if (matchQuery(queries, value)) {
+					tweets.push(value);
 
-					cursor.continue();
-				} else {
-					resultInit();
-					window.onscroll = function() {
-						result.style.height = last.offsetTop + last.clientHeight + tweets.length * 40 + "px";
-						popTweets(tweets, tokenResponse);
-					}
+					const user = getTweetOriginUserId(value);
+					if (users.indexOf(user) < 0)
+						users.push(user);
 
-					popTweets(tweets, tokenResponse);
+					progress.textContent = "Searching (found "
+						+ tweets.length
+						+ " tweets)";
 				}
+
+				cursor.continue();
+			} else {
+				chainGetUserObjectsContainer(users, tweets,
+					response.access_token);
 			}
-		});
+		}
+	});
 }
 
 open.onupgradeneeded = function() {

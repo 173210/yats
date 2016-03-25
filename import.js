@@ -13,13 +13,15 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
+"use strict";
+
 window.onerror = alert;
 
 const open = window.indexedDB.open("tweets", 1);
 var openDone = false;
 
-function showError(event) {
-	alert(event.target.error);
+function handleErrorEvent(event) {
+	window.onerror(event.target.error);
 }
 
 function changeStatusRunning(element) {
@@ -34,18 +36,215 @@ function showProgress(element, loaded, total) {
 	element.value = loaded / total * 100;
 }
 
-open.onerror = showError;
+open.onerror = handleErrorEvent;
 
 open.onsuccess = function() {
 	openDone = true;
 }
 
+function parse(csv, onprogress) {
+	const rows = [];
+	var entry = "";
+	var row = [];
+	for (var i = 0; i < csv.length;) {
+		switch (csv[i]) {
+		case ",":
+			row.push(entry);
+			entry = "";
+			i++;
+			break;
+
+		case "\n":
+			row.push(entry);
+			rows.push(row);
+			entry = "";
+			row = [];
+			i++;
+			break;
+
+		case "\"":
+			while (true) {
+				i++;
+				if (csv[i] == "\"") {
+					i++;
+					if (csv[i] == "\"") {
+						entry += "\"";
+					} else {
+						break;
+					}
+				} else {
+					entry += csv[i];
+				}
+			}
+
+			break;
+
+		default:
+			entry += csv[i];
+			i++;
+			break;
+		}
+
+		onprogress(rows.length, i, csv.length);
+	}
+
+	return rows;
+}
+
+function chainStoreTweets(db, tweets, sources) {
+	const storeProgress = document.getElementById("store-progress");
+	const storeStatus = document.getElementById("store-status");
+	changeStatusRunning(storeStatus);
+
+	const store = db.transaction("tweets", "readwrite").objectStore("tweets");
+
+	var stored = 0;
+	for (i = 0; i < tweets.length; i++) {
+		tweets[i].source = sources[tweets[i].source];
+
+		const request = store.add(tweets[i]);
+		request.onerror = handleErrorEvent;
+		request.onsuccess = function() {
+			stored++;
+			if (stored >= tweets.length) {
+				const doneStatus = document.getElementById("done-status");
+				changeStatusRunning(doneStatus);
+				changeStatus(doneStatus,
+					"Done (Type \"tweets\" in the omnibox and press tab to search tweets)");
+			}
+		}
+
+		changeStatus(storeStatus, "Storing ("
+			+ i + "/" + tweets.length + " tweets)");
+
+		showProgress(storeProgress, i, tweets.length);
+	}
+}
+
+function chainStoreSources(user_details, objects) {
+	open.onsuccess = function() {
+		const db = this.result;
+		const store = db.transaction("sources", "readwrite").objectStore("sources");
+
+		var stored = 0;
+		const sources = { };
+		for (const source of objects.sources) {
+			store.add(source).onsuccess = function(event) {
+				sources[source] = event.target.result;
+				stored++;
+				if (stored >= objects.sources.length)
+					chainStoreTweets(db, objects.tweets, sources);
+			}
+		}
+
+		for (tweet of objects.tweets)
+			tweet.user_id = parseInt(user_details.id);
+	}
+
+	if (openDone)
+		open.onsuccess();
+}
+
+function createObjects(rows) {
+	const text = document.createElement("textarea");
+	const tweets = [];
+	const sources = [];
+
+	for (var i = 1; i < rows.length; i++) {
+		const tweet = { };
+		for (var j = 0; j < rows[i].length; j++) {
+			text.innerHTML = rows[i][j];
+			tweet[rows[0][j]] = text.value;
+		}
+
+		function deleteFalseInTweet(key) {
+			if (!tweet[key])
+				delete tweet[key];
+		}
+
+		function parseIntInTweet(key) {
+			if (tweet[key])
+				tweet[key] = parseInt(tweet[key]);
+		}
+
+		function newDateInTweet(key) {
+			if (tweet[key])
+				tweet[key] = new Date(tweet[key]);
+		}
+
+		deleteFalseInTweet("in_reply_to_status_id");
+		deleteFalseInTweet("in_reply_to_user_id");
+		deleteFalseInTweet("retweeted_status_id");
+		deleteFalseInTweet("retweeted_status_user_id");
+		deleteFalseInTweet("retweeted_status_timestamp");
+
+		parseIntInTweet("in_reply_to_user_id");
+		parseIntInTweet("retweeted_status_user_id");
+
+		newDateInTweet("timestamp");
+		newDateInTweet("retweeted_status_timestamp");
+
+		if (sources.indexOf(tweet.source) < 0)
+			sources.push(tweet.source);
+
+		tweets.push(tweet);
+	}
+
+	return { tweets: tweets, sources: sources };
+}
+
+function chainUnzip(raw) {
+	const zip = new JSZip(raw);
+
+	changeStatusRunning(document.getElementById("csv-status"));
+	const csv = zip.file("tweets.csv").asText();
+
+	const parseProgress = document.getElementById("parse-progress");
+	const parseStatus = document.getElementById("parse-status");
+	changeStatusRunning(parseStatus);
+
+	const rows = parse(csv, function(entries, parsed, total) {
+		changeStatus(parseStatus, "Parsing tweets.csv ("
+			+ parsed + "/" + total + " bytes, "
+			+ entries + " entries)");
+
+		showProgress(parseProgress, parsed, total);
+	});
+
+	changeStatusRunning(document.getElementById("user-status"));
+
+	var messageEvent = null;
+	window.onmessage = function(event) {
+		messageEvent = event;
+	}
+
+	document.getElementById("sandbox").contentWindow
+		.postMessage(zip.file("data/js/user_details.js").asText(), "*");
+
+	const objects = createObjects(rows);
+
+	window.onmessage = function(event) {
+		chainStoreSources(event.data, objects);
+	}
+
+	if (messageEvent)
+		window.onmessage(event);
+
+	changeStatusRunning(document.getElementById("user-parse-status"));
+}
+
 document.getElementById("file").onchange = function() {
-	this.disabled = true;
+	const file = this;
+
+	file.disabled = true;
+	window.onerror = function(message) {
+		file.disabled = false;
+		alert(message);
+	}
 
 	const reader = new FileReader();
 
-	reader.onerror = showError;
+	reader.onerror = handleErrorEvent;
 
 	const readerProgress = document.getElementById("reader-progress");
 	const readerStatus = document.getElementById("reader-status");
@@ -63,143 +262,8 @@ document.getElementById("file").onchange = function() {
 		}
 	}
 
-	const rows = [];
-
-	window.onmessage = function(event) {
-		open.onsuccess = function() {
-			const storeProgress = document.getElementById("store-progress");
-			const storeStatus = document.getElementById("store-status");
-			changeStatusRunning(storeStatus);
-
-			const store = open.result
-				.transaction("tweets", "readwrite")
-				.objectStore("tweets");
-			const text = document.createElement("textarea");
-
-			stored = 1;
-			for (var i = 1; i < rows.length; i++) {
-				const object = { user_id: event.data.id };
-				for (var j = 0; j < rows[i].length; j++) {
-					text.innerHTML = rows[i][j];
-					object[rows[0][j]] = text.value;
-				}
-
-				function deleteFalseInObject(key) {
-					if (!object[key])
-						delete object[key];
-				}
-
-				function parseIntInObject(key) {
-					if (object[key])
-						object[key] = parseInt(object[key]);
-				}
-
-				function newDateInObject(key) {
-					if (object[key])
-						object[key] = new Date(object[key]);
-				}
-
-				deleteFalseInObject("in_reply_to_status_id");
-				deleteFalseInObject("in_reply_to_user_id");
-				deleteFalseInObject("retweeted_status_id");
-				deleteFalseInObject("retweeted_status_user_id");
-				deleteFalseInObject("retweeted_status_timestamp");
-
-				parseIntInObject("user_id");
-				parseIntInObject("in_reply_to_user_id");
-				parseIntInObject("retweeted_status_user_id");
-
-				newDateInObject("timestamp");
-				newDateInObject("retweeted_status_timestamp");
-
-				const request = store.add(object);
-				request.onerror = showError;
-				request.onsuccess = function() {
-					stored++;
-					if (stored >= rows.length) {
-						const doneStatus = document.getElementById("done-status");
-						changeStatusRunning(doneStatus);
-						changeStatus(doneStatus,
-						"Done (Type \"tweets\" in the omnibox and press tab to search tweets)");
-					}
-				}
-
-				changeStatus(storeStatus, "Storing ("
-					+ i + "/" + (rows.length - 1)
-					+ " tweets)");
-
-				showProgress(storeProgress, i, rows.length);
-			}
-		}
-
-		if (openDone)
-			open.onsuccess();
-	}
-
 	reader.onload = function(event) {
-		reader.onprogress(event);
-		const zip = new JSZip(this.result);
-
-		changeStatusRunning(document.getElementById("csv-status"));
-		const csv = zip.file("tweets.csv").asText();
-
-		const parseProgress = document.getElementById("parse-progress");
-		const parseStatus = document.getElementById("parse-status");
-		changeStatusRunning(parseStatus);
-
-		var entry = "";
-		var row = [];
-		for (var i = 0; i < csv.length;) {
-			switch (csv[i]) {
-			case ",":
-				row.push(entry);
-				entry = "";
-				i++;
-				break;
-
-			case "\n":
-				row.push(entry);
-				rows.push(row);
-				entry = "";
-				row = [];
-				i++;
-				break;
-
-			case "\"":
-				while (true) {
-					i++;
-					if (csv[i] == "\"") {
-						i++;
-						if (csv[i] == "\"") {
-							entry += "\"";
-						} else {
-							break;
-						}
-					} else {
-						entry += csv[i];
-					}
-				}
-
-				break;
-
-			default:
-				entry += csv[i];
-				i++;
-				break;
-			}
-
-			changeStatus(parseStatus, "Parsing tweets.csv ("
-				+ i + "/" + csv.length + " bytes, "
-				+ rows.length + " entries)");
-
-			showProgress(parseProgress, i, csv.length);
-		}
-
-		changeStatusRunning(document.getElementById("user-status"));
-		document.getElementById("sandbox").contentWindow
-			.postMessage(zip.file("data/js/user_details.js").asText(), "*");
-
-		changeStatusRunning(document.getElementById("user-parse-status"));
+		chainUnzip(event.target.result);
 	}
 
 	reader.readAsArrayBuffer(this.files[0]);

@@ -13,7 +13,7 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-window.onerror = alert;
+"use strict";
 
 function resultInit() {
 	document.getElementById("result").innerHTML = "";
@@ -24,17 +24,19 @@ function resultAppend(element) {
 }
 
 function resultAppendText(text) {
-	element = document.createElement("div");
+	const element = document.createElement("div");
 	element.textContent = text;
 	return resultAppend(element);
 }
+
+window.onerror = resultAppendText;
 
 resultAppendText("Initializing");
 
 function fetchJson(input, init) {
 	return fetch(input, init).then(function(response) {
 		return response.json();
-	}, alert);
+	}, window.onerror);
 }
 
 const token = fetchJson("https://api.twitter.com/oauth2/token", {
@@ -44,12 +46,12 @@ const token = fetchJson("https://api.twitter.com/oauth2/token", {
 		"Authorization": CREDENTIAL
 	}, body: "grant_type=client_credentials" });
 
-token.catch(alert);
+token.catch(window.onerror);
 
 const open = window.indexedDB.open("tweets", 1);
 
 open.onerror = function(event) {
-	alert(event.target.error);
+	window.onerror(event.target.error);
 }
 
 function getIteratorOfString(string) {
@@ -256,6 +258,7 @@ function matchAll(value, query) {
 		&& (!formBeforeValue || new Date(formBeforeValue) >= value.timestamp)
 		&& (!formReplyIsChecked || value.in_reply_to_user_id)
 		&& (!formRtIsChecked || value.retweeted_status_id)
+		&& excludedSources.indexOf(value.source) < 0
 		&& matchQuery(value, query);
 }
 
@@ -321,12 +324,13 @@ function chainShowTweets(users, tweets) {
 			}
 
 			window.onscroll();
-		}, alert);
+		}, window.onerror);
 	}
 }
 
 function chainInitializeResult(users, tweets) {
 	resultInit();
+	window.onerror = alert;
 	window.onscroll = function() {
 		result.style.height = last.offsetTop + last.clientHeight + tweets.length * 40 + "px";
 		chainShowTweets(users, tweets);
@@ -358,7 +362,7 @@ function chainGetUserObjectsContainer(users, tweets, token) {
 			left.length = 0;
 
 		request.then(function(response) {
-			for (user of response)
+			for (const user of response)
 				userObjects[user.id] = user.profile_image_url_https;
 
 			chainGetUserObjects(left);
@@ -400,13 +404,39 @@ open.onsuccess = function() {
 					response.access_token);
 			}
 		}
-	});
+
+		open.result.transaction("sources", "readonly")
+			.objectStore("sources")
+			.openCursor()
+			.onsuccess = function(event)
+		{
+			const cursor = event.target.result;
+			if (!cursor)
+				return;
+
+			const input = document.createElement("input");
+			input.name = "exsrc";
+			input.type = "checkbox";
+			input.value = cursor.key;
+
+			if (excludedSources.indexOf(cursor.key) >= 0)
+				input.setAttribute("checked", "checked");
+
+			const div = document.createElement("div");
+			div.appendChild(input);
+			div.innerHTML += cursor.value;
+
+			document.getElementById("form-exclude-source").appendChild(div);
+
+			cursor.continue();
+		}
+	}, window.onerror);
 }
 
 open.onupgradeneeded = function() {
 	resultAppendText("Initialized");
-	const progress = resultAppendText("Creating database");
-	store = open.result.createObjectStore("tweets", { keyPath : "tweet_id" });
+	resultAppendText("Creating database");
+	const store = open.result.createObjectStore("tweets", { keyPath : "tweet_id" });
 	const col = [ { title: "user_id", unique: false },
 		{ title: "in_reply_to_status_id", unique: false },
 		{ title: "in_reply_to_user_id", unique: false },
@@ -419,12 +449,10 @@ open.onupgradeneeded = function() {
 		{ title: "expanded_urls", unique: false },
 		{ title: "html_expire", unique: false },
 		{ title: "html", unique: false }];
-	for (var i = 0; i < col.length; i++) {
-		store.createIndex(col[i].title, col[i].title, { unique: col[i].unique });
-		progress.textContent = "Creating database ("
-			+ Math.round(i / col.length) + "%, "
-			+ i + "/" + col.length + ")";
-	};
+	for (v of col)
+		store.createIndex(v.title, v.title, { unique: v.unique });
+
+	open.result.createObjectStore("sources", { autoIncrement: true });
 
 	function move() {
 		window.location = "import.html";
@@ -434,8 +462,9 @@ open.onupgradeneeded = function() {
 }
 
 var query;
-for (option of window.location.search.substring(1).split("&")) {
-	matched = option.match(/^(.*?)=(.*)/);
+const excludedSources = [];
+for (const option of window.location.search.substring(1).split("&")) {
+	const matched = option.match(/^(.*?)=(.*)/);
 	switch (matched[1]) {
 	case "after":
 		document.getElementById("form-after").value
@@ -461,6 +490,10 @@ for (option of window.location.search.substring(1).split("&")) {
 	case "rt":
 		document.getElementById("form-rt").checked
 			= matched[2] == "on";
+		break;
+
+	case "exsrc":
+		excludedSources.push(parseInt(matched[2]));
 		break;
 	}
 }

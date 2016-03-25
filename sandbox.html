@@ -16,6 +16,8 @@
 <!DOCTYPE html>
 <html>
 	<script>
+		"use strict";
+
 		window.onmessage = function(event) {
 			event.source.postMessage(
 				eval(event.data + ";user_details;"),

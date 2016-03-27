@@ -265,7 +265,7 @@ function getTweetOriginUserId(tweet) {
 		tweet.retweeted_status_user_id : tweet.user_id;
 }
 
-function chainTweetsShow(origins, tweets) {
+function chainTweetsShow(users, tweets) {
 	if (last &&
 		document.body.scrollTop + document.documentElement.clientHeight
 			< last.offsetTop + last.clientHeight)
@@ -282,10 +282,10 @@ function chainTweetsShow(origins, tweets) {
 	const image = document.createElement("img");
 	image.className = "tweet-image";
 	image.setAttribute("src",
-		origins[tweetOriginUserId].profile_image_url_https);
+		users[tweetOriginUserId].profile_image_url_https);
 
 	const userUri = "https://twitter.com/"
-		+ origins[tweetOriginUserId].screen_name;
+		+ users[tweetOriginUserId].screen_name;
 
 	const timestamp = document.createElement("a");
 	timestamp.setAttribute("href", userUri
@@ -296,12 +296,12 @@ function chainTweetsShow(origins, tweets) {
 	const name = document.createElement("a");
 	name.className = "tweet-header-name";
 	name.setAttribute("href", userUri);
-	name.textContent = origins[tweetOriginUserId].name;
+	name.textContent = users[tweetOriginUserId].name;
 
 	const meta = document.createElement("span");
 	meta.className = "tweet-header-meta";
 	meta.appendChild(document.createTextNode(
-		" @" + origins[tweetOriginUserId].screen_name + " \u00B7 "));
+		" @" + users[tweetOriginUserId].screen_name + " \u00B7 "));
 	meta.appendChild(timestamp);
 
 	const header = document.createElement("div");
@@ -322,6 +322,16 @@ function chainTweetsShow(origins, tweets) {
 
 	const top = document.createElement("p");
 	top.className = "tweet";
+
+	if (tweet.retweeted_status_id) {
+		const retweeted = document.createElement("div");
+		retweeted.className = "tweet-retweeted";
+		retweeted.textContent = "Retweeted by "
+			+ users[tweet.user_id].name;
+
+		top.appendChild(retweeted);
+	}
+
 	top.appendChild(image);
 	top.appendChild(content);
 	top.appendChild(imageClear);
@@ -330,15 +340,15 @@ function chainTweetsShow(origins, tweets) {
 	window.onscroll();
 }
 
-function chainTweetsInitializeResult(origins, tweets) {
+function chainTweetsInitializeResult(users, tweets) {
 	resultInit();
 	window.onerror = alert;
 	window.onscroll = function() {
 		result.style.height = last.offsetTop + last.clientHeight + tweets.length * 40 + "px";
-		chainTweetsShow(origins, tweets);
+		chainTweetsShow(users, tweets);
 	}
 
-	chainTweetsShow(origins, tweets);
+	chainTweetsShow(users, tweets);
 }
 
 function addUserToUpdateForm(object) {
@@ -357,7 +367,7 @@ function chainTweetsGetUserObjects(result, users, tokenString) {
 	var done = 0;
 	const requests = [];
 	const userNames = [];
-	const origins = { };
+	const originAndUsers = { };
 	while (done < toLookup.length) {
 		const next = done + 100;
 		requests.push(fetchJson("https://api.twitter.com/1.1/users/lookup.json?include_entities=false&user_id="
@@ -366,8 +376,7 @@ function chainTweetsGetUserObjects(result, users, tokenString) {
 				headers: { "Authorization": "Bearer " + tokenString }
 			}).then(function(response) {
 				for (const object of response) {
-					if (result.origins.indexOf(object.id) >= 0)
-						origins[object.id] = object;
+					originAndUsers[object.id] = object;
 
 					for (const user of users)
 						if (user.id == object.id)
@@ -379,7 +388,7 @@ function chainTweetsGetUserObjects(result, users, tokenString) {
 	}
 
 	Promise.all(requests).then(function() {
-		chainTweetsInitializeResult(origins, result.tweets);
+		chainTweetsInitializeResult(originAndUsers, result.tweets);
 	}, window.onerror);
 }
 

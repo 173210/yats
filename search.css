@@ -6,6 +6,13 @@
 	float: left;
 }
 
+.tweet-retweeted {
+	color: gray;
+	margin-top: 4px;
+	margin-bottom: 4px;
+	margin-left: 32px;
+}
+
 .tweet-image-clear {
 	clear: left;
 }

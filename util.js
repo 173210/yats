@@ -15,6 +15,9 @@
 
 "use strict";
 
+const consumerKey = CONSUMER_KEY;
+const consumerSecret = CONSUMER_SECRET;
+
 function oauthFetch(input, init, authorizationOption, option) {
 	if (!option)
 		option = {};
@@ -23,7 +26,7 @@ function oauthFetch(input, init, authorizationOption, option) {
 		option.secret = "";
 
 	const authorization = {
-		oauth_consumer_key: CONSUMER_KEY,
+		oauth_consumer_key: consumerKey,
 		oauth_signature_method: "HMAC-SHA1",
 		oauth_version: "1.0"
 	};
@@ -56,7 +59,7 @@ function oauthFetch(input, init, authorizationOption, option) {
 		parameters.push(object.key + "=" + object.value);
 
 	authorization.oauth_signature
-		= encodeURIComponent(b64_hmac_sha1(CONSUMER_SECRET + "&" + option.secret, [
+		= encodeURIComponent(b64_hmac_sha1(consumerSecret + "&" + option.secret, [
 			init.method, encodeURIComponent(input),
 			encodeURIComponent(parameters.join("&"))].join("&")));
 

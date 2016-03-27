@@ -1,8 +1,4 @@
-ifndef CREDENTIAL
-$(error set CREDENTIAL (e.g. CREDENTIAL=consumer_key:consumer_secret))
-endif
 
-CREDENTIAL_BASE64 := $(shell echo -n $(CREDENTIAL) | base64)
 
 ifdef NO_UGLIFY
 OUTPUT = > $@
@@ -28,10 +24,6 @@ yats.crx: $(addprefix yats/,LICENSE.html LICENSE_SHA1.html	\
 yats/util.js: util.js sha1.js | yats
 	@echo Creating $@
 	@sed -e 's/CONSUMER_KEY/"$(CONSUMER_KEY)"/;s/CONSUMER_SECRET/"$(CONSUMER_SECRET)"/' util.js | cat - sha1.js $(OUTPUT)
-
-yats/search.js: search.js | yats
-	@echo Creating $@
-	@sed -e 's/CREDENTIAL/"Basic $(CREDENTIAL_BASE64)"/' search.js $(OUTPUT)
 
 yats/import.js: import.js jszip/dist/jszip.min.js | yats/JSZIP_LICENSE.markdown yats
 	@echo Creating $@

@@ -43,7 +43,7 @@ const token = fetchJson("https://api.twitter.com/oauth2/token", {
 	method: "POST",
 	headers: {
 		"Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-		"Authorization": CREDENTIAL
+		"Authorization": btoa(consumer_key + ":" + consumer_secret)
 	}, body: "grant_type=client_credentials" });
 
 token.catch(window.onerror);

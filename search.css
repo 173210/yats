@@ -33,11 +33,17 @@
 	text-decoration: underline;
 }
 
+.tweet {
+	border-bottom: solid thin gray;
+	margin: 0px;
+}
+
 .tweet-content {
 	display: block;
 	overflow: hidden;
 }
 
 #result {
+	border: solid thin gray;
 	overflow: hidden;
 }

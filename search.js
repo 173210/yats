@@ -294,6 +294,7 @@ function chainTweetsShow(origins, tweets) {
 		tweet.retweeted_status_timestamp : tweet.timestamp).toLocaleString();
 
 	const name = document.createElement("a");
+	name.className = "name";
 	name.setAttribute("href", userUri);
 	name.textContent = origins[tweetOriginUserId].name;
 

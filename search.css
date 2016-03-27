@@ -14,6 +14,18 @@
 	font-weight: bold;
 }
 
+.meta, .meta a {
+	color: gray;
+}
+
+.meta a:link, a:visited {
+	text-decoration: none;
+}
+
+.meta a:hover, .meta a:active {
+	text-decoration: underline;
+}
+
 .content {
 	display: block;
 	overflow: hidden;

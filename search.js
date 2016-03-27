@@ -298,11 +298,15 @@ function chainTweetsShow(origins, tweets) {
 	name.setAttribute("href", userUri);
 	name.textContent = origins[tweetOriginUserId].name;
 
+	const meta = document.createElement("span");
+	meta.className = "meta";
+	meta.appendChild(document.createTextNode(
+		" @" + origins[tweetOriginUserId].screen_name + " \u00B7 "));
+	meta.appendChild(timestamp);
+
 	const header = document.createElement("div");
 	header.appendChild(name);
-	header.appendChild(document.createTextNode(
-		" @" + origins[tweetOriginUserId].screen_name + " \u00B7 "));
-	header.appendChild(timestamp);
+	header.appendChild(meta);
 
 	const text = document.createElement("span");
 	text.className = "text";

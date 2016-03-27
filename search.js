@@ -621,8 +621,13 @@ open.onupgradeneeded = function() {
 
 document.getElementById("form-exclude-open").onclick = function() {
 	const element = document.getElementById("form-exclude-source");
-	element.className = element.className == "form-exclude-source-open" ?
-		"form-exclude-source-close" : "form-exclude-source-open";
+	if (element.className == "form-exclude-source-open") {
+		element.className = "form-exclude-source-close";
+		this.textContent = "\u25BC Exclude source";
+	} else {
+		element.className = "form-exclude-source-open";
+		this.textContent = "\u25B2 Exclude source";
+	}
 }
 
 var query;

@@ -640,6 +640,7 @@ for (const option of searchBody.split("&")) {
 		element.innerHTML = decodeURIComponent(matched[2]);
 		query = parseQuery(getIteratorOfString(element.value, false));
 		document.getElementById("form-query").value = element.value;
+		document.title = element.value + " - YATS!";
 		break;
 
 	case "reply":

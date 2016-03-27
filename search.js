@@ -290,8 +290,8 @@ function chainTweetsShow(origins, tweets) {
 	const timestamp = document.createElement("a");
 	timestamp.setAttribute("href", userUri
 		+ "/status/" + encodeURI(tweet.tweet_id));
-	timestamp.textContent = tweet.retweeted_status_timestamp ?
-		tweet.retweeted_status_timestamp : tweet.timestamp;
+	timestamp.textContent = (tweet.retweeted_status_timestamp ?
+		tweet.retweeted_status_timestamp : tweet.timestamp).toLocaleString();
 
 	const name = document.createElement("a");
 	name.setAttribute("href", userUri);

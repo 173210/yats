@@ -19,11 +19,11 @@
 	color: gray;
 }
 
-.tweet-header-meta a:link, .tweet-header-meta a:visited {
+.tweet a:link, .tweet a:visited {
 	text-decoration: none;
 }
 
-.tweet-header-meta a:hover, .tweet-header-meta a:active {
+.tweet a:hover, .tweet a:active {
 	text-decoration: underline;
 }
 

@@ -321,6 +321,7 @@ function chainTweetsShow(origins, tweets) {
 	content.appendChild(text);
 
 	const top = document.createElement("p");
+	top.className = "tweet";
 	top.appendChild(image);
 	top.appendChild(content);
 	top.appendChild(imageClear);

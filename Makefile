@@ -21,27 +21,30 @@ ifdef KEY
 CHROME_FLAGS := --pack-extension-key=$(KEY)
 endif
 
-yats.crx: $(addprefix yats/,LICENSE.html LICENSE_SHA1.html	\
-	manifest.json background.js callback.html callback.js util.js	\
-	import.css import.html import.js sandbox.html	\
-	search.css search.html search.js)
+yats.crx: $(addprefix yats/,manifest.json LICENSE.html LICENSE_SHA1.html	\
+	callback.html import.html sandbox.html search.html	\
+	js/background.js js/callback.js js/import.js js/search.js js/util.js	\
+	css/import.css css/search.css)
 	chrome --pack-extension=yats $(CHROME_FLAGS)
 
-yats/search.js: search.js twitter-text/js/twitter-text.js
+yats/js/search.js: js/search.js twitter-text/js/twitter-text.js
 	@echo Creating $@
 	@cat $^ $(OUTPUT)
 
-yats/util.js: util.js sha1.js | yats
+yats/js/util.js: js/util.js js/sha1.js | yats/js
 	@echo Creating $@
-	@sed -e 's/CONSUMER_KEY/"$(CONSUMER_KEY)"/;s/CONSUMER_SECRET/"$(CONSUMER_SECRET)"/' util.js | cat - sha1.js $(OUTPUT)
+	@sed -e 's/CONSUMER_KEY/"$(CONSUMER_KEY)"/;s/CONSUMER_SECRET/"$(CONSUMER_SECRET)"/' js/util.js | cat - js/sha1.js $(OUTPUT)
 
-yats/import.js: import.js jszip/dist/jszip.min.js | yats/JSZIP_LICENSE.markdown yats
+yats/js/import.js: js/import.js jszip/dist/jszip.min.js | yats/JSZIP_LICENSE.markdown yats/js
 	@echo Creating $@
 	@cat $^ $(OUTPUT)
 
-yats/%.js: %.js | yats
+yats/js/%.js: js/%.js | yats/js
 	@echo Creating $@
 	@cat $^ $(OUTPUT)
+
+yats/css/%.css: css/%.css | yats/css
+	cp $< $@
 
 yats/JSZIP_LICENSE.markdown: jszip/LICENSE.markdown | yats
 	cp $< $@
@@ -49,8 +52,14 @@ yats/JSZIP_LICENSE.markdown: jszip/LICENSE.markdown | yats
 yats/%: % | yats
 	cp $< $@
 
+yats/css:
+	mkdir -p $@
+
+yats/js:
+	mkdir -p $@
+
 yats:
-	mkdir yats
+	mkdir -p $@
 
 clean:
 	rm -rf yats yats.crx

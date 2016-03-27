@@ -1,5 +1,5 @@
 {
-	"background": { "scripts": ["background.js"] },
+	"background": { "scripts": ["background.js"], "persistent": false },
 	"permissions": ["https://api.twitter.com/"],
 	"sandbox": { "pages": ["sandbox.html"] },
 	"description": "Add support to the omnibox to search your tweets.",

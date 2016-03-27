@@ -15,7 +15,9 @@
 
 "use strict";
 
-chrome.omnibox.setDefaultSuggestion({ description: 'Search your tweets' });
+chrome.runtime.onStartup.addListener(function() {
+	chrome.omnibox.setDefaultSuggestion({ description: 'Search your tweets' });
+});
 
 chrome.omnibox.onInputEntered.addListener(function(text) {
 	chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {

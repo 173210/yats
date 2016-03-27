@@ -279,31 +279,13 @@ function chainTweetsShow(origins, tweets) {
 
 	const tweetOriginUserId = getTweetOriginUserId(tweet);
 
-	if (tweet.html_expire < new Date())
-		tweet.html = undefined;
-
-	var oembed;
-	if (!tweet.html) {
-		const user = origins[tweet.user_id];
-		oembed = oauthFetch("https://api.twitter.com/1/statuses/oembed.json",
-			{ method: "GET" }, { oauth_token: user.oauth_token }, {
-				secret: user.oauth_token_secret,
-				body: {
-					omit_script: "t",
-					id: tweet.tweet_id
-				}
-			})
-		.then(function(response) {
-			return response.json();
-		}, window.onerror);
-	}
-
 	const image = document.createElement("img");
 	image.className = "image";
 	image.setAttribute("src", origins[tweetOriginUserId]);
 
 	const text = document.createElement("span");
 	text.className = "text";
+	text.innerHTML = twttr.txt.autoLink(tweet.text);
 
 	const imageClear = document.createElement("p");
 	imageClear.className = "image-clear";
@@ -314,28 +296,7 @@ function chainTweetsShow(origins, tweets) {
 	top.appendChild(imageClear);
 	last = resultAppend(top);
 
-	if (tweet.html) {
-		text.innerHTML = tweet.html;
-		window.onscroll();
-	} else {
-		oembed.then(function(oembedResponse) {
-			if (oembedResponse.html) {
-				text.innerHTML = oembedResponse.html;
-
-				tweet.html_expire = new Date(Date.now() + oembedResponse.cache_age);
-				tweet.html = oembedResponse.html;
-
-				const transaction = open.result.transaction("tweets", "readwrite");
-				transaction.onerror = handleErrorEvent;
-				transaction.objectStore("tweets").put(tweet)
-					.onerror = handleErrorEvent;
-			} else {
-				text.textContent = oembedResponse.error;
-			}
-
-			window.onscroll();
-		}, window.onerror);
-	}
+	window.onscroll();
 }
 
 function chainTweetsInitializeResult(origins, tweets) {

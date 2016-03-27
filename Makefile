@@ -27,6 +27,10 @@ yats.crx: $(addprefix yats/,LICENSE.html LICENSE_SHA1.html	\
 	search.css search.html search.js)
 	chrome --pack-extension=yats $(CHROME_FLAGS)
 
+yats/search.js: search.js twitter-text/js/twitter-text.js
+	@echo Creating $@
+	cat $^ $(OUTPUT)
+
 yats/util.js: util.js sha1.js | yats
 	@echo Creating $@
 	@sed -e 's/CONSUMER_KEY/"$(CONSUMER_KEY)"/;s/CONSUMER_SECRET/"$(CONSUMER_SECRET)"/' util.js | cat - sha1.js $(OUTPUT)

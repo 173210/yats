@@ -15,34 +15,81 @@
 
 "use strict";
 
-window.onerror = alert;
-
-const open = window.indexedDB.open("tweets", 1);
-var openDone = false;
-
-function handleErrorEvent(event) {
-	window.onerror(event.target.error);
-}
-
-function changeStatusRunning(element) {
-	element.className = "running";
-}
-
 function changeStatus(element, status) {
-	element.textContent = status;
+	element.className = status;
 }
 
-function showProgress(element, loaded, total) {
-	element.value = loaded / total * 100;
+function start() {
+	document.getElementById("file").disabled = true;
+	document.getElementById("progress").removeAttribute("value");
 }
 
-open.onerror = handleErrorEvent;
-
-open.onsuccess = function() {
-	openDone = true;
+function abort() {
+	document.getElementById("file").disabled = false;
+	document.getElementById("progress").setAttribute("value", 0);
 }
 
-function parse(csv, onprogress) {
+function finish() {
+	changeStatus(document.getElementById("done-status"), "running");
+	document.getElementById("progress").setAttribute("value", 1);
+}
+
+window.onerror = function(message) {
+	const file = document.getElementById("file-status");
+	const store = document.getElementById("store-status");
+	const done = document.getElementById("done-status");
+
+	abort();
+	changeStatus(file, "pending");
+	changeStatus(store, "pending");
+	changeStatus(done, "pending");
+}
+
+function createObjects(rows) {
+	const text = document.createElement("textarea");
+	const tweets = [];
+	const sources = [];
+
+	for (var i = 1; i < rows.length; i++) {
+		const tweet = { };
+		for (var j = 0; j < rows[i].length; j++) {
+			if (!rows[i][j])
+				continue;
+
+			text.innerHTML = rows[i][j];
+			const key = rows[0][j];
+			const value = text.value;
+			switch (key) {
+			case "user_id":
+			case "in_reply_to_user_id":
+			case "retweeted_status_user_id":
+				tweet[key] = parseInt(value);
+				break;
+
+			case "timestamp":
+			case "retweeted_status_timestamp":
+				tweet[key] = new Date(value);
+				break;
+
+			case "source":
+				if (sources.indexOf(value) < 0)
+					sources.push(value);
+			case "tweet_id":
+			case "in_reply_to_status_id":
+			case "text":
+			case "retweeted_status_id":
+				tweet[key] = value;
+				break;
+			}
+		}
+
+		tweets.push(tweet);
+	}
+
+	return { tweets: tweets, sources: sources };
+}
+
+function parse(csv) {
 	const rows = [];
 	var entry = "";
 	var row = [];
@@ -84,187 +131,85 @@ function parse(csv, onprogress) {
 			i++;
 			break;
 		}
-
-		onprogress(rows.length, i, csv.length);
 	}
 
 	return rows;
 }
 
+const file = new Promise(function(resolve, reject) {
+	document.getElementById("file").onchange = function() {
+		start();
+		changeStatus(document.getElementById("file-status"), "running");
+
+		const reader = new FileReader();
+		reader.onerror = reject;
+		reader.onload = function(readerEvent) {
+			const zip = new JSZip(readerEvent.target.result);
+
+			document.getElementById("sandbox").contentWindow
+				.postMessage(zip.file("data/js/user_details.js").asText(), "*");
+
+			const objects = createObjects(parse(zip.file("tweets.csv").asText()));
+
+			window.onmessage = function(messageEvent) {
+				objects.user = messageEvent.data;
+				resolve(objects);
+			}
+		}
+
+		reader.readAsArrayBuffer(this.files[0]);
+	}
+});
+
+const db = new Promise(function(resolve, reject) {
+	const open = window.indexedDB.open("tweets", 1);
+	open.onerror = reject;
+	open.onsuccess = function() {
+		resolve(this.result);
+	}
+});
+
+function handleErrorEvent(event) {
+	window.onerror(event.target.error);
+}
+
 function chainStoreTweets(db, tweets, sources) {
-	const storeProgress = document.getElementById("store-progress");
-	const storeStatus = document.getElementById("store-status");
-	changeStatusRunning(storeStatus);
+	changeStatus(document.getElementById("store-status"), "running");
 
 	const store = db.transaction("tweets", "readwrite").objectStore("tweets");
 
 	var stored = 0;
-	for (i = 0; i < tweets.length; i++) {
+	for (var i = 0; i < tweets.length; i++) {
 		tweets[i].source = sources[tweets[i].source];
 
 		const request = store.add(tweets[i]);
 		request.onerror = handleErrorEvent;
 		request.onsuccess = function() {
 			stored++;
-			if (stored >= tweets.length) {
-				const doneStatus = document.getElementById("done-status");
-				changeStatusRunning(doneStatus);
-				changeStatus(doneStatus,
-					"Done (Type \"tweets\" in the omnibox and press tab to search tweets)");
-			}
+			if (stored >= tweets.length)
+				finish();
 		}
-
-		changeStatus(storeStatus, "Storing ("
-			+ i + "/" + tweets.length + " tweets)");
-
-		showProgress(storeProgress, i, tweets.length);
 	}
 }
 
-function chainStoreSources(user_details, objects) {
-	open.onsuccess = function() {
-		const db = this.result;
-		const store = db.transaction("sources", "readwrite").objectStore("sources");
+Promise.all([file, db]).then(function(args) {
+	const store = args[1].transaction("sources", "readwrite").objectStore("sources");
 
-		var stored = 0;
-		const sources = { };
-		for (const source of objects.sources) {
-			store.add(source).onsuccess = function(event) {
-				sources[source] = event.target.result;
-				stored++;
-				if (stored >= objects.sources.length)
-					chainStoreTweets(db, objects.tweets, sources);
-			}
-		}
-
-		for (tweet of objects.tweets)
-			tweet.user_id = parseInt(user_details.id);
-	}
-
-	if (openDone)
-		open.onsuccess();
-}
-
-function createObjects(rows) {
-	const text = document.createElement("textarea");
-	const tweets = [];
-	const sources = [];
-
-	for (var i = 1; i < rows.length; i++) {
-		const tweet = { };
-		for (var j = 0; j < rows[i].length; j++) {
-			text.innerHTML = rows[i][j];
-			tweet[rows[0][j]] = text.value;
-		}
-
-		function deleteFalseInTweet(key) {
-			if (!tweet[key])
-				delete tweet[key];
-		}
-
-		function parseIntInTweet(key) {
-			if (tweet[key])
-				tweet[key] = parseInt(tweet[key]);
-		}
-
-		function newDateInTweet(key) {
-			if (tweet[key])
-				tweet[key] = new Date(tweet[key]);
-		}
-
-		deleteFalseInTweet("in_reply_to_status_id");
-		deleteFalseInTweet("in_reply_to_user_id");
-		deleteFalseInTweet("retweeted_status_id");
-		deleteFalseInTweet("retweeted_status_user_id");
-		deleteFalseInTweet("retweeted_status_timestamp");
-
-		parseIntInTweet("in_reply_to_user_id");
-		parseIntInTweet("retweeted_status_user_id");
-
-		newDateInTweet("timestamp");
-		newDateInTweet("retweeted_status_timestamp");
-
-		if (sources.indexOf(tweet.source) < 0)
-			sources.push(tweet.source);
-
-		tweets.push(tweet);
-	}
-
-	return { tweets: tweets, sources: sources };
-}
-
-function chainUnzip(raw) {
-	const zip = new JSZip(raw);
-
-	changeStatusRunning(document.getElementById("csv-status"));
-	const csv = zip.file("tweets.csv").asText();
-
-	const parseProgress = document.getElementById("parse-progress");
-	const parseStatus = document.getElementById("parse-status");
-	changeStatusRunning(parseStatus);
-
-	const rows = parse(csv, function(entries, parsed, total) {
-		changeStatus(parseStatus, "Parsing tweets.csv ("
-			+ parsed + "/" + total + " bytes, "
-			+ entries + " entries)");
-
-		showProgress(parseProgress, parsed, total);
-	});
-
-	changeStatusRunning(document.getElementById("user-status"));
-
-	var messageEvent = null;
-	window.onmessage = function(event) {
-		messageEvent = event;
-	}
-
-	document.getElementById("sandbox").contentWindow
-		.postMessage(zip.file("data/js/user_details.js").asText(), "*");
-
-	const objects = createObjects(rows);
-
-	window.onmessage = function(event) {
-		chainStoreSources(event.data, objects);
-	}
-
-	if (messageEvent)
-		window.onmessage(event);
-
-	changeStatusRunning(document.getElementById("user-parse-status"));
-}
-
-document.getElementById("file").onchange = function() {
-	const file = this;
-
-	file.disabled = true;
-	window.onerror = function(message) {
-		file.disabled = false;
-		alert(message);
-	}
-
-	const reader = new FileReader();
-
-	reader.onerror = handleErrorEvent;
-
-	const readerProgress = document.getElementById("reader-progress");
-	const readerStatus = document.getElementById("reader-status");
-
-	reader.onloadstart = function() {
-		changeStatusRunning(readerStatus);
-	}
-
-	reader.onprogress = function(event) {
-		if (event.lengthComputable) {
-			changeStatus(readerStatus,
-				"Reading (" + event.loaded + "/" + event.total + " bytes)");
-
-			showProgress(readerProgress, event.loaded, event.total);
+	var stored = 0;
+	const sources = { };
+	for (const source of args[0].sources) {
+		store.add(source).onsuccess = function(event) {
+			sources[source] = event.target.result;
+			stored++;
+			if (stored >= args[0].sources.length)
+				chainStoreTweets(args[1], args[0].tweets, sources);
 		}
 	}
 
-	reader.onload = function(event) {
-		chainUnzip(event.target.result);
-	}
+	const id = parseInt(args[0].user.id);
+	for (const tweet of args[0].tweets)
+		tweet.user_id = id;
 
-	reader.readAsArrayBuffer(this.files[0]);
-}
+	args[1].transaction("users", "readwrite").objectStore("users")
+		.add({ id: id });
+}, handleErrorEvent);

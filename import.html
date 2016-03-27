@@ -27,28 +27,18 @@
 		</p>
 		<input id="file" type="file" accept=".zip">
 		<p>
-			<status id="reader-status" class="pending">Reading</status>
-			<progress id="reader-progress" value=0 max=100>0 %</progress>
-		</p>
-		<p><status id="csv-status" class="pending">Extracting tweets.csv</status></p>
-		<p>
-			<status id="parse-status" class="pending">Parsing tweets.csv</status>
-			<progress id="parse-progress" value=0 max=100>0 %</progress>
-		</p>
-		<p><status id="user-status" class="pending">Extracting user_details.js</status>
-		<p><status id="user-parse-status" class="pending">Parsing user_details.js</status>
-		<p>
+			<progress id="progress" value="0"></progress>
+			<status id="file-status" class="pending">Preparing</status>
 			<status id="store-status" class="pending">Storing</status>
-			<progress id="store-progress" value=0 max=100>0 %</progress>
+			<status id="done-status" class="pending">Done (Type "tweets" in the omnibox and press tab to search tweets)</status>
 		</p>
-		<p><status id="done-status" class="pending">Done</status></p>
 		<iframe id="sandbox" class="sandbox" src="sandbox.html"></iframe>
 		<script src="import.js"></script>
 
 		<footer>
 			<p>
 				Copyright (C) 2016  <a href="https://twitter.com/173210/">173210</a>
-				This extension is licensed under <a href="LICENSE.html">AGPLv3+.</a>
+				This extension is licensed under <a href="LICENSE.html">AGPLv3+</a>.
 			</p>
 			<p>
 				This feature uses <a href="http://stuk.github.io/jszip/">JSZip</a>,

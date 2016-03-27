@@ -50,7 +50,7 @@ token.catch(window.onerror);
 
 const open = window.indexedDB.open("tweets", 1);
 
-open.onerror = function(event) {
+function handleErrorEvent(event) {
 	window.onerror(event.target.error);
 }
 
@@ -269,7 +269,7 @@ function getTweetOriginUserId(tweet) {
 		tweet.retweeted_status_user_id : tweet.user_id;
 }
 
-function chainShowTweets(users, tweets) {
+function chainTweetsShow(origins, tweets) {
 	if (last &&
 		document.body.scrollTop + document.documentElement.clientHeight
 			< last.offsetTop + last.clientHeight)
@@ -288,13 +288,23 @@ function chainShowTweets(users, tweets) {
 
 	var oembed;
 	if (!tweet.html) {
-		oembed = fetchJson("https://api.twitter.com/1/statuses/oembed.json?omit_script=true&id="
-			+ encodeURIComponent(tweet.tweet_id), { method: "GET" });
+		const user = origins[tweet.user_id];
+		oembed = oauthFetch("https://api.twitter.com/1/statuses/oembed.json",
+			{ method: "GET" }, { oauth_token: user.oauth_token }, {
+				secret: user.oauth_token_secret,
+				body: {
+					omit_script: "t",
+					id: tweet.tweet_id
+				}
+			})
+		.then(function(response) {
+			return response.json();
+		}, window.onerror);
 	}
 
 	const image = document.createElement("img");
 	image.className = "image";
-	image.setAttribute("src", users[tweetOriginUserId]);
+	image.setAttribute("src", origins[tweetOriginUserId]);
 
 	const text = document.createElement("span");
 	text.className = "text";
@@ -316,9 +326,9 @@ function chainShowTweets(users, tweets) {
 				tweet.html = oembedResponse.html;
 
 				const transaction = open.result.transaction("tweets", "readwrite");
-				transaction.onerror = open.onerror;
+				transaction.onerror = handleErrorEvent;
 				transaction.objectStore("tweets").put(tweet)
-					.onerror = open.onerror;
+					.onerror = handleErrorEvent;
 			} else {
 				text.textContent = oembedResponse.error;
 			}
@@ -328,70 +338,198 @@ function chainShowTweets(users, tweets) {
 	}
 }
 
-function chainInitializeResult(users, tweets) {
+function chainTweetsInitializeResult(origins, tweets) {
 	resultInit();
 	window.onerror = alert;
 	window.onscroll = function() {
 		result.style.height = last.offsetTop + last.clientHeight + tweets.length * 40 + "px";
-		chainShowTweets(users, tweets);
+		chainTweetsShow(origins, tweets);
 	}
 
-	chainShowTweets(users, tweets);
+	chainTweetsShow(origins, tweets);
 }
 
-function chainGetUserObjectsContainer(users, tweets, token) {
-	const userObjects = [];
+function addUserToUpdateForm(object) {
+	const option = document.createElement("option");
+	option.setAttribute("value", object.id_str);
+	option.textContent = object.screen_name;
+	document.getElementById("form-update-user").appendChild(option);
+}
 
-	function chainGetUserObjects(left) {
-		const max = 100;
+function chainTweetsGetUserObjects(result, users, tokenString) {
+	const toLookup = result.origins.copyWithin(0, 0);
+	for (const user of users)
+		if (toLookup.indexOf(user.id) < 0)
+			toLookup.push(user.id);
 
-		if (left.length <= 0) {
-			chainInitializeResult(userObjects, tweets);
+	var done = 0;
+	const requests = [];
+	const userNames = [];
+	const originImages = [];
+	while (done < toLookup.length) {
+		const next = done + 100;
+		requests.push(fetchJson("https://api.twitter.com/1.1/users/lookup.json?include_entities=false&user_id="
+					+ toLookup.slice(done, next).join(","), {
+				method: "POST",
+				headers: { "Authorization": "Bearer " + tokenString }
+			}).then(function(response) {
+				for (const object of response) {
+					if (result.origins.indexOf(object.id) >= 0)
+						originImages[object.id] = object.profile_image_url_https;
+
+					for (const user of users)
+						if (user.id == object.id)
+							addUserToUpdateForm(object);
+				}
+			}, window.onerror));
+
+		done = next;
+	}
+
+	Promise.all(requests).then(function() {
+		chainTweetsInitializeResult(originImages, result.tweets);
+	}, window.onerror);
+}
+
+function chainSourcesOpen(idb) {
+	idb.transaction("sources", "readonly")
+		.objectStore("sources")
+		.openCursor()
+		.onsuccess = function(event)
+	{
+		const cursor = event.target.result;
+		if (!cursor)
 			return;
+
+		const input = document.createElement("input");
+		input.name = "exsrc";
+		input.type = "checkbox";
+		input.value = cursor.key;
+
+		if (excludedSources.indexOf(cursor.key) >= 0)
+			input.setAttribute("checked", "checked");
+
+		const div = document.createElement("div");
+		div.appendChild(input);
+		div.innerHTML += cursor.value;
+
+		document.getElementById("form-exclude-source").appendChild(div);
+
+		cursor.continue();
+	}
+}
+
+function update(db, user, since, max) {
+	const body = {
+		user_id: user.id.toString(),
+		since_id: since,
+		trim_user: "t"
+	};
+
+	if (max)
+		body.max_id = max;
+
+	oauthFetch("https://api.twitter.com/1.1/statuses/user_timeline.json",
+		{ method: "GET" }, { oauth_token: user.oauth_token }, {
+		secret: user.oauth_token_secret,
+		body: body
+	}).then(function (response) {
+		return response.json();
+	}, window.onerror).then(function(response) {
+		const store = db.transaction("tweets", "readwrite").objectStore("tweets");
+		var tweet;
+		for (tweet of response) {
+			const object = {
+				tweet_id: tweet.id_str,
+				user_id: user.id,
+				timestamp: new Date(tweet.created_at),
+				source: tweet.source,
+				text: tweet.text
+			};
+
+			function addIfTrue(destination, source) {
+				if (tweet[source])
+					object[destination] = tweet[source];
+			}
+
+			if (tweet.in_reply_to_status_id_str)
+				object.in_reply_to_status_id
+					= tweet.in_reply_to_status_id_str;
+
+			if (tweet.in_reply_to_user_id)
+				object.in_reply_to_user_id
+					= tweet.in_reply_to_user_id;
+
+			if (tweet.retweeted_status) {
+				object.retweeted_status_id
+					= tweet.retweeted_status.id_str;
+				object.retweeted_user_id
+					= tweet.retweeted_status.user.id;
+				object.retweeted_status_timestamp
+					= new Date (tweet.retweeted_status.created_at);
+			}
+
+			store.add(object).onerror = handleErrorEvent;
 		}
 
-		const request = fetchJson("https://api.twitter.com/1.1/users/lookup.json?user_id="
-					+ left.slice(-max).join(","), {
-				method: "POST",
-				headers: { "Authorization": "Bearer " + token }
-			});
-
-		if (left.length > max)
-			left.length -= max;
-		else
-			left.length = 0;
-
-		request.then(function(response) {
-			for (const user of response)
-				userObjects[user.id] = user.profile_image_url_https;
-
-			chainGetUserObjects(left);
-		});
-	}
-
-	chainGetUserObjects(users);
+		if (response.length >= 200)
+			update(db, user, since, tweet.id_str);
+	}, window.onerror);
 }
 
-open.onsuccess = function() {
-	const progress = resultAppendText("Searching");
-	const users = [];
-	const tweets = [];
+function updater(db, users, tokenString) {
+	const target = document.getElementById("form-update-user").value;
+	const targetInt = parseInt(target);
+	const request = db.transaction("tweets", "readonly").objectStore("tweets")
+		.index("id_timestamp").openCursor(
+			IDBKeyRange.bound([targetInt], [targetInt + 1],
+					false, false), "prev");
 
-	token.then(function(response) {
-		open.result.transaction("tweets", "readonly")
-			.objectStore("tweets")
-			.openCursor()
-			.onsuccess = function(event)
-		{
-			const cursor = event.target.result;
+	for (const user of users) {
+		if (user.id == targetInt) {
+			if (!user.oauth_token || !user.oauth_token_secret) {
+				sessionStorage.setItem("search", searchBody);
+				sessionStorage.setItem("userId", target);
+				sessionStorage.setItem("bearer", tokenString);
+				window.location = "auth.html";
+			}
+
+			request.onsuccess = function(event) {
+				const cursor = event.target.result;
+				if (cursor)
+					update(db, user, cursor.value.tweet_id);
+			}
+
+			return;
+		}
+	}
+}
+
+function registerUpdater(db, users, tokenString) {
+	document.getElementById("form-update-button").onclick = function() {
+		updater(db, users, tokenString);
+	}
+}
+
+function chainTweetsOpen(idb, tokenString) {
+	const tweets = new Promise(function(resolve, reject) {
+		const progress = resultAppendText("Searching");
+		const request = idb.transaction("tweets", "readonly")
+			.objectStore("tweets").openCursor();
+
+		const origins = [];
+		const tweets = [];
+
+		request.onerror = reject;
+		request.onsuccess = function(tweetsEvent) {
+			const cursor = tweetsEvent.target.result;
 			if (cursor) {
 				const value = cursor.value;
 				if (matchAll(value, query)) {
 					tweets.push(value);
-
-					const user = getTweetOriginUserId(value);
-					if (users.indexOf(user) < 0)
-						users.push(user);
+					const origin = getTweetOriginUserId(value);
+					if (origins.indexOf(origin) < 0)
+						origins.push(origin);
 
 					progress.textContent = "Searching (found "
 						+ tweets.length
@@ -400,59 +538,65 @@ open.onsuccess = function() {
 
 				cursor.continue();
 			} else {
-				chainGetUserObjectsContainer(users, tweets,
-					response.access_token);
+				resolve({ origins: origins, tweets: tweets });
 			}
 		}
+	});
 
-		open.result.transaction("sources", "readonly")
-			.objectStore("sources")
-			.openCursor()
-			.onsuccess = function(event)
-		{
+	const users = new Promise(function(resolve, reject) {
+		const objects = [];
+		const request = idb.transaction("users", "readwrite")
+			.objectStore("users").openCursor();
+
+		request.onerror = reject;
+		request.onsuccess = function(event) {
 			const cursor = event.target.result;
-			if (!cursor)
-				return;
-
-			const input = document.createElement("input");
-			input.name = "exsrc";
-			input.type = "checkbox";
-			input.value = cursor.key;
-
-			if (excludedSources.indexOf(cursor.key) >= 0)
-				input.setAttribute("checked", "checked");
-
-			const div = document.createElement("div");
-			div.appendChild(input);
-			div.innerHTML += cursor.value;
-
-			document.getElementById("form-exclude-source").appendChild(div);
-
-			cursor.continue();
+			if (cursor) {
+				objects.push(cursor.value);
+				cursor.continue();
+			} else {
+				registerUpdater(idb, objects, tokenString);
+				resolve(objects);
+			}
 		}
+	});
+
+	Promise.all([tweets, users]).then(function(args) {
+		chainTweetsGetUserObjects(args[0], args[1], tokenString);
+	}, window.onerror);
+}
+
+function chainUseIdb(idb, tokenString) {
+	chainSourcesOpen(idb);
+	chainTweetsOpen(idb, tokenString);
+}
+
+open.onsuccess = function() {
+	const db = open.result;
+
+	token.then(function(response) {
+		chainUseIdb(db, response.access_token);
 	}, window.onerror);
 }
 
 open.onupgradeneeded = function() {
 	resultAppendText("Initialized");
 	resultAppendText("Creating database");
-	const store = open.result.createObjectStore("tweets", { keyPath : "tweet_id" });
-	const col = [ { title: "user_id", unique: false },
-		{ title: "in_reply_to_status_id", unique: false },
-		{ title: "in_reply_to_user_id", unique: false },
-		{ title: "timestamp", unique: false },
-		{ title: "source", unique: false },
-		{ title: "text", unique: false },
-		{ title: "retweeted_status_id", unique: false },
-		{ title: "retweeted_status_user_id", unique: false },
-		{ title: "retweeted_status_timestamp", unique: false },
-		{ title: "expanded_urls", unique: false },
-		{ title: "html_expire", unique: false },
-		{ title: "html", unique: false }];
-	for (v of col)
-		store.createIndex(v.title, v.title, { unique: v.unique });
 
-	open.result.createObjectStore("sources", { autoIncrement: true });
+	function create(name, option, indexes) {
+		const store = open.result.createObjectStore(name, option);
+		for (const name in indexes) {
+			const key = indexes[name] ? indexes[name] : name;
+			store.createIndex(name, key);
+		}
+	}
+
+	create("sources", { autoIncrement: true });
+
+	create("tweets", { keyPath : "tweet_id" },
+		{ id_timestamp: [ "user_id", "timestamp" ]});
+
+	create("users", { keyPath: "id" });
 
 	function move() {
 		window.location = "import.html";
@@ -463,7 +607,8 @@ open.onupgradeneeded = function() {
 
 var query;
 const excludedSources = [];
-for (const option of window.location.search.substring(1).split("&")) {
+const searchBody = window.location.search.substring(1);
+for (const option of searchBody.split("&")) {
 	const matched = option.match(/^(.*?)=(.*)/);
 	switch (matched[1]) {
 	case "after":
@@ -477,9 +622,10 @@ for (const option of window.location.search.substring(1).split("&")) {
 		break;
 
 	case "q":
-		const rawQuery = decodeURIComponent(matched[2]);
-		query = parseQuery(getIteratorOfString(rawQuery, false));
-		document.getElementById("form-query").value = rawQuery;
+		const element = document.createElement('textarea');
+		element.innerHTML = decodeURIComponent(matched[2]);
+		query = parseQuery(getIteratorOfString(element.value, false));
+		document.getElementById("form-query").value = element.value;
 		break;
 
 	case "reply":

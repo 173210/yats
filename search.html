@@ -42,14 +42,27 @@
 				</div>
 				<div id="form-exclude-source">Exclude sources:</div>
 			</form>
+			<form id="form-update">
+				<select id="form-update-user"></select>
+				<input id="form-update-button" type="button" value="Update" />
+			</form>
 			<footer>
 				<p>
 					Copyright (C) 2016  <a href="https://twitter.com/173210/">@173210</a>
-					This extension is licensed under <a href="LICENSE.html">AGPLv3+.</a>
+					This extension is licensed under <a href="LICENSE.html">AGPLv3+</a>.
+				</p>
+				<p>
+					This extension uses an implementation of
+					SHA-1 written by Paul Johnston and
+					others, and distributed under
+					<a href="LICENSE_SHA1.html">the BSD license</a>.
+					See <a href="http://pajhome.org.uk/crypt/md5">http://pajhome.org.uk/crypt/md5</a>
+					for details.
 				</p>
 			</footer>
 		</div>
 		<div id="result" class="result"></div>
+		<script src="util.js"></script>
 		<script src="search.js"></script>
 	</body>
 </html>

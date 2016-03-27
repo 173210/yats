@@ -19,17 +19,28 @@ ifdef KEY
 CHROME_FLAGS := --pack-extension-key=$(KEY)
 endif
 
-yats.crx: $(addprefix yats/,LICENSE.html manifest.json background.js sandbox.html	\
-	search.css search.html search.js import.css import.html import.js)
+yats.crx: $(addprefix yats/,LICENSE.html LICENSE_SHA1.html	\
+	manifest.json background.js	\
+	auth.html auth.js callback.html callback.js util.js	\
+	import.css import.html import.js sandbox.html	\
+	search.css search.html search.js)
 	chrome --pack-extension=yats $(CHROME_FLAGS)
 
-yats/search.js: search.js | yats
-	@echo Processing $<
-	@sed -e 's/CREDENTIAL/"Basic $(CREDENTIAL_BASE64)"/' $< $(OUTPUT)
+yats/util.js: util.js sha1.js | yats
+	@echo Creating $@
+	@sed -e 's/CONSUMER_KEY/"$(CONSUMER_KEY)"/;s/CONSUMER_SECRET/"$(CONSUMER_SECRET)"/' util.js | cat - sha1.js $(OUTPUT)
 
-yats/import.js: jszip/dist/jszip.min.js import.js | yats/JSZIP_LICENSE.markdown yats
-	@echo Processing $^
+yats/search.js: search.js sha1.js | yats
+	@echo Creating $@
+	@sed -e 's/CREDENTIAL/"Basic $(CREDENTIAL_BASE64)"/' search.js $(OUTPUT)
+
+yats/import.js: import.js jszip/dist/jszip.min.js | yats/JSZIP_LICENSE.markdown yats
+	@echo Creating $@
 	@cat $^ $(OUTPUT)
+
+yats/%.js: %.js | yats
+	@echo Creating $@
+	cat $^ $(OUTPUT)
 
 yats/JSZIP_LICENSE.markdown: jszip/LICENSE.markdown | yats
 	cp $< $@

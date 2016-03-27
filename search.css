@@ -19,6 +19,10 @@
 	color: gray;
 }
 
+.tweet-text, .tweet-text a {
+	color: black;
+}
+
 .tweet a:link, .tweet a:visited {
 	text-decoration: none;
 }

@@ -59,6 +59,7 @@ Promise.all([token, db]).then(function(args) {
 
 	request.onerror = alertErrorEvent;
 	request.onsuccess = function() {
+		alert("Authorized. Please try to update again.");
 		document.location.replace("search.html?"
 			+ sessionStorage.getItem("search"));
 	}

@@ -310,10 +310,14 @@ function chainTweetsShow(origins, tweets) {
 	const imageClear = document.createElement("p");
 	imageClear.className = "image-clear";
 
+	const content = document.createElement("div");
+	content.className = "content";
+	content.appendChild(header);
+	content.appendChild(text);
+
 	const top = document.createElement("p");
 	top.appendChild(image);
-	top.appendChild(header);
-	top.appendChild(text);
+	top.appendChild(content);
 	top.appendChild(imageClear);
 	last = resultAppend(top);
 

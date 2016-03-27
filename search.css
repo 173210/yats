@@ -10,6 +10,11 @@
 	clear: left;
 }
 
+.content {
+	display: block;
+	overflow: hidden;
+}
+
 .result {
 	overflow: hidden;
 }

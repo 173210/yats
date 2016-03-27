@@ -491,7 +491,7 @@ function updater(db, users, tokenString) {
 				sessionStorage.setItem("search", searchBody);
 				sessionStorage.setItem("userId", target);
 				sessionStorage.setItem("bearer", tokenString);
-				window.location = "auth.html";
+				authorize();
 			}
 
 			request.onsuccess = function(event) {

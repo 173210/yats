@@ -20,8 +20,7 @@ CHROME_FLAGS := --pack-extension-key=$(KEY)
 endif
 
 yats.crx: $(addprefix yats/,LICENSE.html LICENSE_SHA1.html	\
-	manifest.json background.js	\
-	auth.html auth.js callback.html callback.js util.js	\
+	manifest.json background.js callback.html callback.js util.js	\
 	import.css import.html import.js sandbox.html	\
 	search.css search.html search.js)
 	chrome --pack-extension=yats $(CHROME_FLAGS)

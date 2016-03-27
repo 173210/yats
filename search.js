@@ -619,6 +619,12 @@ open.onupgradeneeded = function() {
 	token.then(move, move);
 }
 
+document.getElementById("form-exclude-open").onclick = function() {
+	const element = document.getElementById("form-exclude-source");
+	element.className = element.className == "form-exclude-source-open" ?
+		"form-exclude-source-close" : "form-exclude-source-open";
+}
+
 var query;
 const excludedSources = [];
 const searchBody = window.location.search.substring(1);

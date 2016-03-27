@@ -47,3 +47,19 @@
 	border: solid thin gray;
 	overflow: hidden;
 }
+
+.form-exclude-source-show {
+	display: block;
+}
+
+.form-exclude-source-close {
+	display: none;
+}
+
+#form-exclude-open {
+	cursor: pointer;
+}
+
+#form-exclude {
+	margin: 4px;
+}

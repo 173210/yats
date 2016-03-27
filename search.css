@@ -2,32 +2,32 @@
 	max-width: 256px;
 }
 
-.sidebar,.image {
+.sidebar,.tweet-image {
 	float: left;
 }
 
-.image-clear {
+.tweet-image-clear {
 	clear: left;
 }
 
-.name, .name a {
+.tweet-header-name, .tweet-header-name a {
 	color: black;
 	font-weight: bold;
 }
 
-.meta, .meta a {
+.tweet-header-meta, .tweet-header-meta a {
 	color: gray;
 }
 
-.meta a:link, a:visited {
+.tweet-header-meta a:link, .tweet-header-meta a:visited {
 	text-decoration: none;
 }
 
-.meta a:hover, .meta a:active {
+.tweet-header-meta a:hover, .tweet-header-meta a:active {
 	text-decoration: underline;
 }
 
-.content {
+.tweet-content {
 	display: block;
 	overflow: hidden;
 }

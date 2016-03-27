@@ -280,7 +280,7 @@ function chainTweetsShow(origins, tweets) {
 	const tweetOriginUserId = getTweetOriginUserId(tweet);
 
 	const image = document.createElement("img");
-	image.className = "image";
+	image.className = "tweet-image";
 	image.setAttribute("src",
 		origins[tweetOriginUserId].profile_image_url_https);
 
@@ -294,12 +294,12 @@ function chainTweetsShow(origins, tweets) {
 		tweet.retweeted_status_timestamp : tweet.timestamp).toLocaleString();
 
 	const name = document.createElement("a");
-	name.className = "name";
+	name.className = "tweet-header-name";
 	name.setAttribute("href", userUri);
 	name.textContent = origins[tweetOriginUserId].name;
 
 	const meta = document.createElement("span");
-	meta.className = "meta";
+	meta.className = "tweet-header-meta";
 	meta.appendChild(document.createTextNode(
 		" @" + origins[tweetOriginUserId].screen_name + " \u00B7 "));
 	meta.appendChild(timestamp);
@@ -309,14 +309,14 @@ function chainTweetsShow(origins, tweets) {
 	header.appendChild(meta);
 
 	const text = document.createElement("span");
-	text.className = "text";
+	text.className = "tweet-text";
 	text.innerHTML = twttr.txt.autoLink(tweet.text);
 
 	const imageClear = document.createElement("p");
-	imageClear.className = "image-clear";
+	imageClear.className = "tweet-image-clear";
 
 	const content = document.createElement("div");
-	content.className = "content";
+	content.className = "tweet-content";
 	content.appendChild(header);
 	content.appendChild(text);
 

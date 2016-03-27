@@ -29,7 +29,7 @@ yats/util.js: util.js sha1.js | yats
 	@echo Creating $@
 	@sed -e 's/CONSUMER_KEY/"$(CONSUMER_KEY)"/;s/CONSUMER_SECRET/"$(CONSUMER_SECRET)"/' util.js | cat - sha1.js $(OUTPUT)
 
-yats/search.js: search.js sha1.js | yats
+yats/search.js: search.js | yats
 	@echo Creating $@
 	@sed -e 's/CREDENTIAL/"Basic $(CREDENTIAL_BASE64)"/' search.js $(OUTPUT)
 

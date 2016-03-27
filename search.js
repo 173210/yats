@@ -344,7 +344,7 @@ function chainTweetsInitializeResult(origins, tweets) {
 function addUserToUpdateForm(object) {
 	const option = document.createElement("option");
 	option.setAttribute("value", object.id_str + "," + object.screen_name);
-	option.textContent = object.screen_name;
+	option.textContent = object.name + " @" + object.screen_name;
 	document.getElementById("form-update-user").appendChild(option);
 }
 

@@ -23,7 +23,7 @@ if (!parsed.oauth_token || !parsed.oauth_verifier
 	|| parsed.oauth_token != sessionStorage.getItem("access"))
 {
 	alert("Failed to authenticate. Retrying");
-	document.location.replace("auth.html");
+	authorize();
 }
 
 const token = oauthFetch("https://api.twitter.com/oauth/access_token",

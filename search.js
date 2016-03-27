@@ -249,14 +249,10 @@ function matchQuery(value, queries) {
 }
 
 function matchAll(value, query) {
-	const formAfterValue = document.getElementById("form-after").value;
-	const formBeforeValue = document.getElementById("form-before").value;
 	const formReplyIsChecked = document.getElementById("form-reply").checked;
 	const formRtIsChecked = document.getElementById("form-rt").checked;
 
-	return (!formAfterValue || new Date(formAfterValue) <= value.timestamp)
-		&& (!formBeforeValue || new Date(formBeforeValue) >= value.timestamp)
-		&& (!formReplyIsChecked || value.in_reply_to_user_id)
+	return (!formReplyIsChecked || value.in_reply_to_user_id)
 		&& (!formRtIsChecked || value.retweeted_status_id)
 		&& excludedSources.indexOf(value.source) < 0
 		&& matchQuery(value, query);
@@ -515,8 +511,28 @@ function registerUpdater(db, users, tokenString) {
 function chainTweetsOpen(idb, tokenString) {
 	const tweets = new Promise(function(resolve, reject) {
 		const progress = resultAppendText("Searching");
+
+		const bound = {};
+		for (const id of ["form-after", "form-before"]) {
+			const value = document.getElementById(id).value;
+			if (value)
+				bound[id] = new Date(value);
+		}
+
+		const range = bound["form-after"] ?
+			(bound["form-before"] ?
+				IDBKeyRange.bound(
+					bound["form-after"],
+					bound["form-before"],
+					false, false) :
+				IDBKeyRange.lowerBound(bound["form-afer"])) :
+			(bound["form-before"] ?
+				IDBKeyRange.upperBound(bound["form-before"]) :
+				undefined);
+
 		const request = idb.transaction("tweets", "readonly")
-			.objectStore("tweets").openCursor();
+			.objectStore("tweets").index("timestamp")
+			.openCursor(range);
 
 		const origins = [];
 		const tweets = [];
@@ -594,8 +610,9 @@ open.onupgradeneeded = function() {
 
 	create("sources", { autoIncrement: true });
 
-	create("tweets", { keyPath : "tweet_id" },
-		{ id_timestamp: [ "user_id", "timestamp" ]});
+	create("tweets", { keyPath : "tweet_id" }, {
+			id_timestamp: [ "user_id", "timestamp" ],
+			timestamp: "timestamp" });
 
 	create("users", { keyPath: "id" });
 

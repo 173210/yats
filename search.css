@@ -2,7 +2,11 @@
 	max-width: 256px;
 }
 
-.sidebar,.tweet-image {
+.sidebar {
+	float: left;
+}
+
+.tweet-image {
 	float: left;
 	margin: 4px;
 }

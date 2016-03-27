@@ -83,6 +83,9 @@ function createObjects(rows) {
 			}
 		}
 
+		if (tweet.retweeted_status_id)
+			tweet.text = tweet.text.replace(/^.+?: /, "");
+
 		tweets.push(tweet);
 	}
 

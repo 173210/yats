@@ -60,6 +60,7 @@
 	cursor: pointer;
 }
 
-#form-exclude {
-	margin: 4px;
+#form-update {
+	margin-top: 8px;
+	margin-bottom: 8px;
 }

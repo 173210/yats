@@ -351,7 +351,7 @@ function chainTweetsInitializeResult(origins, tweets) {
 
 function addUserToUpdateForm(object) {
 	const option = document.createElement("option");
-	option.setAttribute("value", object.id_str);
+	option.setAttribute("value", object.id_str + "," + object.screen_name);
 	option.textContent = object.screen_name;
 	document.getElementById("form-update-user").appendChild(option);
 }
@@ -478,8 +478,8 @@ function update(db, user, since, max) {
 }
 
 function updater(db, users, tokenString) {
-	const target = document.getElementById("form-update-user").value;
-	const targetInt = parseInt(target);
+	const target = document.getElementById("form-update-user").value.split(",");
+	const targetInt = parseInt(target[0]);
 	const request = db.transaction("tweets", "readonly").objectStore("tweets")
 		.index("id_timestamp").openCursor(
 			IDBKeyRange.bound([targetInt], [targetInt + 1],
@@ -489,9 +489,10 @@ function updater(db, users, tokenString) {
 		if (user.id == targetInt) {
 			if (!user.oauth_token || !user.oauth_token_secret) {
 				sessionStorage.setItem("search", searchBody);
-				sessionStorage.setItem("userId", target);
-				sessionStorage.setItem("bearer", tokenString);
-				authorize();
+				sessionStorage.setItem("userId", target[0]);
+				sessionStorage.setItem("userName", target[1]);
+				authorize(target[1]);
+				return;
 			}
 
 			request.onsuccess = function(event) {

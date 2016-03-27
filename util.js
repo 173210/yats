@@ -88,7 +88,7 @@ function parseUri(uri) {
 	return parsed;
 }
 
-function authorize() {
+function authorize(name) {
 	const token = oauthFetch("https://api.twitter.com/oauth/request_token",
 		{ method: "POST" }, { oauth_callback:
 			encodeURIComponent(
@@ -100,38 +100,11 @@ function authorize() {
 		return response.text();
 	}, alert)
 	.then(function (response) {
-		return new Promise(function(resolve, reject) {
-			const parsed = parseUri(response);
-			sessionStorage.setItem("access", parsed.oauth_token);
-			sessionStorage.setItem("accessSecret", parsed.oauth_token_secret);
+		const parsed = parseUri(response);
+		sessionStorage.setItem("access", parsed.oauth_token);
+		sessionStorage.setItem("accessSecret", parsed.oauth_token_secret);
 
-			resolve(parsed.oauth_token);
-		});
-	}, alert);
-
-	const name = new Promise(function(resolve, reject) {
-		var name = sessionStorage.getItem("userName");
-		if (name) {
-			resolve(name);
-			return;
-		}
-
-		fetch("https://api.twitter.com/1.1/users/lookup.json?user_id="
-			+ sessionStorage.getItem("userId"),
-			{ method: "GET", headers: {
-				"Authorization": "Bearer " + sessionStorage.getItem("bearer") } })
-		.then(function(response) {
-			return response.json();
-		}, reject)
-		.then(function(response) {
-			name = response[0].screen_name;
-			sessionStorage.setItem("userName", name);
-			resolve(name);
-		}, reject);
-	});
-
-	Promise.all([token, name]).then(function(args) {
 		document.location.replace("https://api.twitter.com/oauth/authorize?force_login=true&screen_name="
-			+ encodeURIComponent(args[1]) + "&oauth_token=" + args[0]);
+			+ encodeURIComponent(name) + "&oauth_token=" + parsed.oauth_token);
 	}, alert);
 }

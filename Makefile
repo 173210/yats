@@ -29,7 +29,7 @@ yats.crx: $(addprefix yats/,LICENSE.html LICENSE_SHA1.html	\
 
 yats/search.js: search.js twitter-text/js/twitter-text.js
 	@echo Creating $@
-	cat $^ $(OUTPUT)
+	@cat $^ $(OUTPUT)
 
 yats/util.js: util.js sha1.js | yats
 	@echo Creating $@
@@ -41,7 +41,7 @@ yats/import.js: import.js jszip/dist/jszip.min.js | yats/JSZIP_LICENSE.markdown 
 
 yats/%.js: %.js | yats
 	@echo Creating $@
-	cat $^ $(OUTPUT)
+	@cat $^ $(OUTPUT)
 
 yats/JSZIP_LICENSE.markdown: jszip/LICENSE.markdown | yats
 	cp $< $@

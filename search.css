@@ -6,6 +6,10 @@
 	float: left;
 }
 
+.image-clear {
+	clear: left;
+}
+
 .result,.twitter-tweet {
 	overflow: hidden;
 }

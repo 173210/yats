@@ -1,4 +1,10 @@
+ifndef CONSUMER_KEY
+$(error set CONSUMER_KEY)
+endif
 
+ifndef CONSUMER_SECRET
+$(error set CONSUMER_KEY)
+endif
 
 ifdef NO_UGLIFY
 OUTPUT = > $@

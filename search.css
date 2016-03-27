@@ -10,7 +10,8 @@
 	clear: left;
 }
 
-.name {
+.name, .name a {
+	color: black;
 	font-weight: bold;
 }
 

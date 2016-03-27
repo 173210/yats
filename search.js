@@ -281,7 +281,27 @@ function chainTweetsShow(origins, tweets) {
 
 	const image = document.createElement("img");
 	image.className = "image";
-	image.setAttribute("src", origins[tweetOriginUserId]);
+	image.setAttribute("src",
+		origins[tweetOriginUserId].profile_image_url_https);
+
+	const userUri = "https://twitter.com/"
+		+ origins[tweetOriginUserId].screen_name;
+
+	const timestamp = document.createElement("a");
+	timestamp.setAttribute("href", userUri
+		+ "/status/" + encodeURI(tweet.tweet_id));
+	timestamp.textContent = tweet.retweeted_status_timestamp ?
+		tweet.retweeted_status_timestamp : tweet.timestamp;
+
+	const name = document.createElement("a");
+	name.setAttribute("href", userUri);
+	name.textContent = origins[tweetOriginUserId].name;
+
+	const header = document.createElement("div");
+	header.appendChild(name);
+	header.appendChild(document.createTextNode(
+		" @" + origins[tweetOriginUserId].screen_name + " \u00B7 "));
+	header.appendChild(timestamp);
 
 	const text = document.createElement("span");
 	text.className = "text";
@@ -292,6 +312,7 @@ function chainTweetsShow(origins, tweets) {
 
 	const top = document.createElement("p");
 	top.appendChild(image);
+	top.appendChild(header);
 	top.appendChild(text);
 	top.appendChild(imageClear);
 	last = resultAppend(top);
@@ -326,7 +347,7 @@ function chainTweetsGetUserObjects(result, users, tokenString) {
 	var done = 0;
 	const requests = [];
 	const userNames = [];
-	const originImages = [];
+	const origins = { };
 	while (done < toLookup.length) {
 		const next = done + 100;
 		requests.push(fetchJson("https://api.twitter.com/1.1/users/lookup.json?include_entities=false&user_id="
@@ -336,7 +357,7 @@ function chainTweetsGetUserObjects(result, users, tokenString) {
 			}).then(function(response) {
 				for (const object of response) {
 					if (result.origins.indexOf(object.id) >= 0)
-						originImages[object.id] = object.profile_image_url_https;
+						origins[object.id] = object;
 
 					for (const user of users)
 						if (user.id == object.id)
@@ -348,7 +369,7 @@ function chainTweetsGetUserObjects(result, users, tokenString) {
 	}
 
 	Promise.all(requests).then(function() {
-		chainTweetsInitializeResult(originImages, result.tweets);
+		chainTweetsInitializeResult(origins, result.tweets);
 	}, window.onerror);
 }
 

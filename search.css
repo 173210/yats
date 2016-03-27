@@ -4,6 +4,7 @@
 
 .sidebar,.tweet-image {
 	float: left;
+	margin: 4px;
 }
 
 .tweet-retweeted {

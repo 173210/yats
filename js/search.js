@@ -358,16 +358,20 @@ function addUserToUpdateForm(object) {
 	document.getElementById("form-update-user").appendChild(option);
 }
 
-function chainTweetsGetUserObjects(result, users, tokenString) {
-	const toLookup = result.origins.copyWithin(0, 0);
-	for (const user of users)
-		if (toLookup.indexOf(user.id) < 0)
-			toLookup.push(user.id);
+function chainTweetsGetUserObjects(result, registered, users, tokenString) {
+	const toLookup = [];
+
+	for (const id of result.origins)
+		if (!users[id])
+			toLookup.push(id);
+
+	for (const id of registered)
+		if (toLookup.indexOf(id) < 0)
+			toLookup.push(id);
 
 	var done = 0;
 	const requests = [];
 	const userNames = [];
-	const originAndUsers = { };
 	while (done < toLookup.length) {
 		const next = done + 100;
 		requests.push(fetchJson("https://api.twitter.com/1.1/users/lookup.json?include_entities=false&user_id="
@@ -376,10 +380,10 @@ function chainTweetsGetUserObjects(result, users, tokenString) {
 				headers: { "Authorization": "Bearer " + tokenString }
 			}).then(function(response) {
 				for (const object of response) {
-					originAndUsers[object.id] = object;
+					users[object.id] = object;
 
-					for (const user of users)
-						if (user.id == object.id)
+					for (const id of registered)
+						if (id == object.id)
 							addUserToUpdateForm(object);
 				}
 			}, window.onerror));
@@ -388,8 +392,33 @@ function chainTweetsGetUserObjects(result, users, tokenString) {
 	}
 
 	Promise.all(requests).then(function() {
-		chainTweetsInitializeResult(originAndUsers, result.tweets);
+		chainTweetsInitializeResult(users, result.tweets);
 	}, window.onerror);
+}
+
+function findExcludeSource(value) {
+	for (const element of document.forms["form-search"].elements["exsrc"])
+		if (element.parentNode.lastChild.innerHTML == value)
+			return element.parentNode.lastChild;
+}
+
+function addSourceToForm(key, value) {
+	const input = document.createElement("input");
+	input.name = "exsrc";
+	input.type = "checkbox";
+	input.value = key;
+
+	if (excludedSources.indexOf(key) >= 0)
+		input.setAttribute("checked", "checked");
+
+	const text = document.createElement("span");
+	text.innerHTML = value;
+
+	const parent = document.createElement("div");
+	parent.appendChild(input);
+	parent.appendChild(text);
+
+	document.getElementById("form-exclude-source").appendChild(parent);
 }
 
 function chainSourcesOpen(idb) {
@@ -399,24 +428,10 @@ function chainSourcesOpen(idb) {
 		.onsuccess = function(event)
 	{
 		const cursor = event.target.result;
-		if (!cursor)
-			return;
-
-		const input = document.createElement("input");
-		input.name = "exsrc";
-		input.type = "checkbox";
-		input.value = cursor.key;
-
-		if (excludedSources.indexOf(cursor.key) >= 0)
-			input.setAttribute("checked", "checked");
-
-		const div = document.createElement("div");
-		div.appendChild(input);
-		div.innerHTML += cursor.value;
-
-		document.getElementById("form-exclude-source").appendChild(div);
-
-		cursor.continue();
+		if (cursor) {
+			addSourceToForm(cursor.key, cursor.value);
+			cursor.continue();
+		}
 	}
 }
 
@@ -437,7 +452,8 @@ function update(db, user, since, max) {
 	}).then(function (response) {
 		return response.json();
 	}, window.onerror).then(function(response) {
-		const store = db.transaction("tweets", "readwrite").objectStore("tweets");
+		const sources = db.transaction("sources", "readwrite").objectStore("sources");
+		const tweets = db.transaction("tweets", "readwrite").objectStore("tweets");
 		var tweet;
 		for (tweet of response) {
 			const object = {
@@ -470,7 +486,22 @@ function update(db, user, since, max) {
 					= new Date (tweet.retweeted_status.created_at);
 			}
 
-			store.add(object).onerror = handleErrorEvent;
+			new Promise(function(resolve, reject) {
+				const source = findExcludeSource(tweet.source);
+				if (source) {
+					resolve(source.firstNode.value);
+				} else {
+					const request = sources.add(tweet.source);
+					request.onerror = reject;
+					request.onsuccess = function(event) {
+						addSourceToForm(event.target.result, tweet.source);
+						resolve(event.target.result);
+					}
+				}
+			}).then(function(source) {
+				object.source = source;
+				tweets.add(object).onerror = handleErrorEvent;
+			});
 		}
 
 		if (response.length >= 200)
@@ -489,7 +520,7 @@ function updater(db, users, tokenString) {
 	for (const user of users) {
 		if (user.id == targetInt) {
 			if (!user.oauth_token || !user.oauth_token_secret) {
-				sessionStorage.setItem("search", searchBody);
+				sessionStorage.setItem("search", window.location.search.substring(1));
 				sessionStorage.setItem("userId", target[0]);
 				sessionStorage.setItem("userName", target[1]);
 				authorize(target[1]);
@@ -513,91 +544,157 @@ function registerUpdater(db, users, tokenString) {
 	}
 }
 
-function chainTweetsOpen(idb, tokenString) {
+function searchTweets(idb, resolve, reject) {
+	const rawQuery = document.getElementById("form-query").value;
+	document.title = rawQuery + " - YATS!";
+	const progress = resultAppendText("Searching");
+
+	const bound = {};
+	for (const id of ["form-after", "form-before"]) {
+		const value = document.getElementById(id).value;
+		if (value)
+			bound[id] = new Date(value);
+	}
+
+	const range = bound["form-after"] ?
+		(bound["form-before"] ?
+			IDBKeyRange.bound(
+				bound["form-after"],
+				bound["form-before"],
+				false, false) :
+			IDBKeyRange.lowerBound(bound["form-afer"])) :
+		(bound["form-before"] ?
+			IDBKeyRange.upperBound(bound["form-before"]) :
+			undefined);
+
+	const request = idb.transaction("tweets", "readonly")
+		.objectStore("tweets").index("timestamp")
+		.openCursor(range);
+
+	const query = parseQuery(getIteratorOfString(rawQuery, false));
+	const origins = [];
+	const tweets = [];
+
+	request.onerror = reject;
+	request.onsuccess = function(tweetsEvent) {
+		const cursor = tweetsEvent.target.result;
+		if (cursor) {
+			const value = cursor.value;
+			if (matchAll(value, query)) {
+				tweets.push(value);
+				const origin = getTweetOriginUserId(value);
+				if (origins.indexOf(origin) < 0)
+					origins.push(origin);
+
+				progress.textContent = "Searching (found "
+					+ tweets.length
+					+ " tweets)";
+			}
+
+			cursor.continue();
+		} else {
+			resolve({ origins: origins, tweets: tweets });
+		}
+	}
+}
+
+function getUsersAndRegisterUpdater(idb, tokenString, resolve, reject) {
+	const objects = [];
+	const request = idb.transaction("users", "readwrite")
+		.objectStore("users").openCursor();
+
+	request.onerror = reject;
+	request.onsuccess = function(event) {
+		const cursor = event.target.result;
+		if (cursor) {
+			objects.push(cursor.value.id);
+			cursor.continue();
+		} else {
+			registerUpdater(idb, objects, tokenString);
+			resolve(objects);
+		}
+	}
+}
+
+function chainTweetsInitialSearch(idb, users, tokenString) {
 	const tweets = new Promise(function(resolve, reject) {
-		const progress = resultAppendText("Searching");
-
-		const bound = {};
-		for (const id of ["form-after", "form-before"]) {
-			const value = document.getElementById(id).value;
-			if (value)
-				bound[id] = new Date(value);
-		}
-
-		const range = bound["form-after"] ?
-			(bound["form-before"] ?
-				IDBKeyRange.bound(
-					bound["form-after"],
-					bound["form-before"],
-					false, false) :
-				IDBKeyRange.lowerBound(bound["form-afer"])) :
-			(bound["form-before"] ?
-				IDBKeyRange.upperBound(bound["form-before"]) :
-				undefined);
-
-		const request = idb.transaction("tweets", "readonly")
-			.objectStore("tweets").index("timestamp")
-			.openCursor(range);
-
-		const origins = [];
-		const tweets = [];
-
-		request.onerror = reject;
-		request.onsuccess = function(tweetsEvent) {
-			const cursor = tweetsEvent.target.result;
-			if (cursor) {
-				const value = cursor.value;
-				if (matchAll(value, query)) {
-					tweets.push(value);
-					const origin = getTweetOriginUserId(value);
-					if (origins.indexOf(origin) < 0)
-						origins.push(origin);
-
-					progress.textContent = "Searching (found "
-						+ tweets.length
-						+ " tweets)";
-				}
-
-				cursor.continue();
-			} else {
-				resolve({ origins: origins, tweets: tweets });
-			}
-		}
+		searchTweets(idb, resolve, reject);
 	});
 
-	const users = new Promise(function(resolve, reject) {
-		const objects = [];
-		const request = idb.transaction("users", "readwrite")
-			.objectStore("users").openCursor();
-
-		request.onerror = reject;
-		request.onsuccess = function(event) {
-			const cursor = event.target.result;
-			if (cursor) {
-				objects.push(cursor.value);
-				cursor.continue();
-			} else {
-				registerUpdater(idb, objects, tokenString);
-				resolve(objects);
-			}
-		}
+	const registered = new Promise(function(resolve, reject) {
+		getUsersAndRegisterUpdater(idb, tokenString, resolve, reject);
 	});
 
-	Promise.all([tweets, users]).then(function(args) {
-		chainTweetsGetUserObjects(args[0], args[1], tokenString);
+	Promise.all([tweets, registered]).then(function(args) {
+		chainTweetsGetUserObjects(args[0], args[1], users, tokenString);
 	}, window.onerror);
 }
 
-function chainUseIdb(idb, tokenString) {
-	chainSourcesOpen(idb);
-	chainTweetsOpen(idb, tokenString);
+function chainTweetsSecondSearch(idb, users, tokenString) {
+	searchTweets(idb, function(tweets) {
+		chainTweetsGetUserObjects(tweets, [], users, tokenString);
+	}, window.onerror);
+}
+
+function updateExcludedSourcesWithForm() {
+	const elements = document.forms["form-search"].elements["exsrc"];
+	for (var i = 0; i < elements.length; i++) {
+		const index = excludedSources.indexOf(elements[i].value);
+		if (elements[i].checked) {
+			if (index < 0)
+				excludedSources.push(elements[i].value);
+		} else {
+			if (index >= 0)
+				delete excludedSources[index];
+		}
+	}
 }
 
 open.onsuccess = function() {
 	const db = open.result;
 
 	token.then(function(response) {
-		chainUseIdb(db, response.access_token);
+		const users = { };
+
+		chainSourcesOpen(db);
+		chainTweetsInitialSearch(db, users, response.access_token);
+
+		document.getElementById("form-search").onsubmit = function(event) {
+			resultInit();
+			updateExcludedSourcesWithForm();
+			chainTweetsSecondSearch(db, users, response.access_token);
+
+			const options = [];
+			for (var index = 0; index < event.target.length; index++) {
+				const input = event.target[index];
+				const name = input.name;
+				const raw = input.value;
+				const encoded = encodeURIComponent(raw);
+				switch (input.type) {
+					case "checkbox":
+						if (input.checked)
+							options.push(name + "=" + encoded);
+						break;
+
+					case "date":
+					case "text":
+						if (input.value)
+							options.push(name + "=" + encoded);
+						break;
+				}
+			}
+
+			history.pushState(undefined, "",
+				window.location.pathname + "?" + options.join("&"));
+
+			return false;
+		}
+
+		window.onpopstate = function() {
+			setState();
+			resultInit();
+			chainTweetsSecondSearch(db, users, response.access_token);
+		}
 	}, window.onerror);
 }
 
@@ -639,42 +736,43 @@ document.getElementById("form-exclude-open").onclick = function() {
 	}
 }
 
-var query;
 const excludedSources = [];
-const searchBody = window.location.search.substring(1);
-for (const option of searchBody.split("&")) {
-	const matched = option.match(/^(.*?)=(.*)/);
-	switch (matched[1]) {
-	case "after":
-		document.getElementById("form-after").value
-			= decodeURIComponent(matched[2]);
-		break;
 
-	case "before":
-		document.getElementById("form-before").value
-			= decodeURIComponent(matched[2]);
-		break;
+function setState() {
+	for (const option of window.location.search.substring(1).split("&")) {
+		const matched = option.match(/^(.*?)=(.*)/);
+		switch (matched[1]) {
+		case "after":
+			document.getElementById("form-after").value
+				= decodeURIComponent(matched[2]);
+			break;
 
-	case "q":
-		const element = document.createElement('textarea');
-		element.innerHTML = decodeURIComponent(matched[2]);
-		query = parseQuery(getIteratorOfString(element.value, false));
-		document.getElementById("form-query").value = element.value;
-		document.title = element.value + " - YATS!";
-		break;
+		case "before":
+			document.getElementById("form-before").value
+				= decodeURIComponent(matched[2]);
+			break;
 
-	case "reply":
-		document.getElementById("form-reply").checked
-			= matched[2] == "on";
-		break;
+		case "q":
+			const element = document.createElement('textarea');
+			element.innerHTML = decodeURIComponent(matched[2]);
+			document.getElementById("form-query").value = element.value;
+			break;
 
-	case "rt":
-		document.getElementById("form-rt").checked
-			= matched[2] == "on";
-		break;
+		case "reply":
+			document.getElementById("form-reply").checked
+				= matched[2] == "on";
+			break;
 
-	case "exsrc":
-		excludedSources.push(parseInt(matched[2]));
-		break;
+		case "rt":
+			document.getElementById("form-rt").checked
+				= matched[2] == "on";
+			break;
+
+		case "exsrc":
+			excludedSources.push(parseInt(matched[2]));
+			break;
+		}
 	}
 }
+
+setState();

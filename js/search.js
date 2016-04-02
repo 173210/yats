@@ -54,21 +54,6 @@ function handleErrorEvent(event) {
 	window.onerror(event.target.error);
 }
 
-function getIteratorOfString(string) {
-	function next() {
-		if (this.count >= this.value.length) {
-			return { done: true };
-		} else {
-			const value = this.value[this.count];
-			this.count++;
-
-			return { done: false, value: value };
-		}
-	}
-
-	return { next: next, count: 0, value: string };
-}
-
 function getTypeOfQuery(string) {
 	if (string.length <= 0)
 		return null;
@@ -86,10 +71,6 @@ function getTypeOfQuery(string) {
 function parseQuery(iterator, block) {
 	const queries = [];
 	var word;
-
-	function continueWord(from) {
-		iterator = getIteratorOfString(from + iterator.value);
-	}
 
 	function initializeWord() {
 		word = "";
@@ -125,7 +106,7 @@ function parseQuery(iterator, block) {
 
 			if (result.done) {
 				word += "\"";
-				continueWord(quoted);
+				iterator = quoted[Symbol.iterator]();
 			} else if (word.length > 0) {
 				const query = { type: "STRING", value: word + quoted };
 				queries.push(query);
@@ -139,9 +120,14 @@ function parseQuery(iterator, block) {
 				word += result.value;
 			} else {
 				const query = { type: "BLOCK" };
-				query.value = parseQuery(iterator, true);
-				if (query.value)
-					queries.push(query);
+				const parsed = parseQuery(iterator, true);
+				if (parsed.iterator) {
+					queries.push(parsed.query);
+					iterator = parsed.iterator;
+				} else {
+					queries.push.apply(queries, parsed.query);
+					return { query: queries };
+				}
 			}
 
 			break;
@@ -149,7 +135,7 @@ function parseQuery(iterator, block) {
 		case ")":
 			if (block) {
 				finalizeWord();
-				return queries;
+				return { query: queries, iterator: iterator };
 			} else {
 				word += result.value;
 				break;
@@ -170,7 +156,7 @@ function parseQuery(iterator, block) {
 	}
 
 	finalizeWord();
-	return queries;
+	return { query: queries };
 }
 
 function matchString(string, value) {
@@ -571,7 +557,7 @@ function searchTweets(idb, resolve, reject) {
 		.objectStore("tweets").index("timestamp")
 		.openCursor(range);
 
-	const query = parseQuery(getIteratorOfString(rawQuery, false));
+	const query = parseQuery(rawQuery[Symbol.iterator]()).query;
 	const origins = [];
 	const tweets = [];
 

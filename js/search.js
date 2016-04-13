@@ -15,18 +15,34 @@
 
 "use strict";
 
+var resultBottom;
+
 function resultInit() {
-	document.getElementById("result").innerHTML = "";
+	const result = document.getElementById("result");
+	result.innerHTML = "";
+	resultBottom = result.offsetTop;
 }
 
 function resultAppend(element) {
-	return document.getElementById("result").appendChild(element);
+	document.getElementById("result").appendChild(element);
+	resultBottom = element.offsetTop + element.clientHeight;
+}
+
+function resultAppendFragment(fragment) {
+	const last = fragment.lastElementChild;
+	if (last) {
+		document.getElementById("result").appendChild(fragment);
+		resultBottom = last.offsetTop + last.clientHeight;
+		console.log(resultBottom);
+	}
 }
 
 function resultAppendText(text) {
 	const element = document.createElement("div");
 	element.textContent = text;
-	return resultAppend(element);
+	resultAppend(element);
+
+	return element;
 }
 
 window.onerror = resultAppendText;
@@ -244,97 +260,95 @@ function matchAll(value, query) {
 		&& matchQuery(value, query);
 }
 
-var last;
-
 function getTweetOriginUserId(tweet) {
 	return tweet.retweeted_status_user_id ?
 		tweet.retweeted_status_user_id : tweet.user_id;
 }
 
 function chainTweetsShow(users, tweets) {
-	if (last &&
-		document.body.scrollTop + document.documentElement.clientHeight
-			< last.offsetTop + last.clientHeight)
+	const fragment = document.createDocumentFragment();
+
+	for (var gap = (document.body.scrollTop + document.documentElement.clientHeight) - resultBottom;
+		gap > 0;
+		gap -= 40)
 	{
-		return;
+		const tweet = tweets.pop();
+		if (!tweet)
+			return;
+
+		const tweetOriginUserId = getTweetOriginUserId(tweet);
+
+		const image = document.createElement("img");
+		image.className = "tweet-image";
+		image.setAttribute("src",
+			users[tweetOriginUserId].profile_image_url_https);
+
+		const userUri = "https://twitter.com/"
+			+ users[tweetOriginUserId].screen_name;
+
+		const timestamp = document.createElement("a");
+		timestamp.setAttribute("href", userUri
+			+ "/status/" + encodeURI(tweet.tweet_id));
+		timestamp.textContent = (tweet.retweeted_status_timestamp ?
+			tweet.retweeted_status_timestamp : tweet.timestamp).toLocaleString();
+
+		const name = document.createElement("a");
+		name.className = "tweet-header-name";
+		name.setAttribute("href", userUri);
+		name.textContent = users[tweetOriginUserId].name;
+
+		const meta = document.createElement("span");
+		meta.className = "tweet-header-meta";
+		meta.appendChild(document.createTextNode(
+			" @" + users[tweetOriginUserId].screen_name + " \u00B7 "));
+		meta.appendChild(timestamp);
+
+		const header = document.createElement("div");
+		header.appendChild(name);
+		header.appendChild(meta);
+
+		const text = document.createElement("span");
+		text.className = "tweet-text";
+		text.innerHTML = twttr.txt.autoLink(tweet.text);
+
+		const imageClear = document.createElement("p");
+		imageClear.className = "tweet-image-clear";
+
+		const content = document.createElement("div");
+		content.className = "tweet-content";
+		content.appendChild(header);
+		content.appendChild(text);
+
+		const top = document.createElement("p");
+		top.className = "tweet";
+
+		if (tweet.retweeted_status_id) {
+			const retweeted = document.createElement("div");
+			retweeted.className = "tweet-retweeted";
+			retweeted.textContent = "Retweeted by "
+				+ users[tweet.user_id].name;
+
+			top.appendChild(retweeted);
+		}
+
+		top.appendChild(image);
+		top.appendChild(content);
+		top.appendChild(imageClear);
+		fragment.appendChild(top);
 	}
 
-	const tweet = tweets.pop();
-	if (!tweet)
-		return;
-
-	const tweetOriginUserId = getTweetOriginUserId(tweet);
-
-	const image = document.createElement("img");
-	image.className = "tweet-image";
-	image.setAttribute("src",
-		users[tweetOriginUserId].profile_image_url_https);
-
-	const userUri = "https://twitter.com/"
-		+ users[tweetOriginUserId].screen_name;
-
-	const timestamp = document.createElement("a");
-	timestamp.setAttribute("href", userUri
-		+ "/status/" + encodeURI(tweet.tweet_id));
-	timestamp.textContent = (tweet.retweeted_status_timestamp ?
-		tweet.retweeted_status_timestamp : tweet.timestamp).toLocaleString();
-
-	const name = document.createElement("a");
-	name.className = "tweet-header-name";
-	name.setAttribute("href", userUri);
-	name.textContent = users[tweetOriginUserId].name;
-
-	const meta = document.createElement("span");
-	meta.className = "tweet-header-meta";
-	meta.appendChild(document.createTextNode(
-		" @" + users[tweetOriginUserId].screen_name + " \u00B7 "));
-	meta.appendChild(timestamp);
-
-	const header = document.createElement("div");
-	header.appendChild(name);
-	header.appendChild(meta);
-
-	const text = document.createElement("span");
-	text.className = "tweet-text";
-	text.innerHTML = twttr.txt.autoLink(tweet.text);
-
-	const imageClear = document.createElement("p");
-	imageClear.className = "tweet-image-clear";
-
-	const content = document.createElement("div");
-	content.className = "tweet-content";
-	content.appendChild(header);
-	content.appendChild(text);
-
-	const top = document.createElement("p");
-	top.className = "tweet";
-
-	if (tweet.retweeted_status_id) {
-		const retweeted = document.createElement("div");
-		retweeted.className = "tweet-retweeted";
-		retweeted.textContent = "Retweeted by "
-			+ users[tweet.user_id].name;
-
-		top.appendChild(retweeted);
-	}
-
-	top.appendChild(image);
-	top.appendChild(content);
-	top.appendChild(imageClear);
-	last = resultAppend(top);
-
-	window.onscroll();
+	resultAppendFragment(fragment);
+	result.style.height = resultBottom + tweets.length * 40 + "px";
 }
 
 function chainTweetsInitializeResult(users, tweets) {
 	resultInit();
 	window.onerror = alert;
 	window.onscroll = function() {
-		result.style.height = last.offsetTop + last.clientHeight + tweets.length * 40 + "px";
 		chainTweetsShow(users, tweets);
 	}
 
-	chainTweetsShow(users, tweets);
+	window.onscroll();
 }
 
 function addUserToUpdateForm(object) {

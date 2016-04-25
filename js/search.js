@@ -485,8 +485,7 @@ function update(db, user, since, max) {
 	}).then(function (response) {
 		return response.json();
 	}, window.onerror).then(function(response) {
-		let tweet;
-		for (tweet of response) {
+		for (const tweet of response) {
 			const object = {
 				tweet_id: tweet.id_str,
 				user_id: user.id,

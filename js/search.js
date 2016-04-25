@@ -273,7 +273,7 @@ function chainTweetsShow(users, tweets) {
 	{
 		const tweet = tweets.pop();
 		if (!tweet)
-			return;
+			break;
 
 		const tweetOriginUserId = getTweetOriginUserId(tweet);
 

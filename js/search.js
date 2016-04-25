@@ -33,7 +33,6 @@ function resultAppendFragment(fragment) {
 	if (last) {
 		document.getElementById("result").appendChild(fragment);
 		resultBottom = last.offsetTop + last.clientHeight;
-		console.log(resultBottom);
 	}
 }
 

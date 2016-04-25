@@ -365,9 +365,9 @@ function chainTweetsGetUserObjects(result, registered, users, tokenString) {
 		if (!users[id])
 			toLookup.push(id);
 
-	for (const id of registered)
-		if (toLookup.indexOf(id) < 0)
-			toLookup.push(id);
+	for (const user of registered)
+		if (toLookup.indexOf(user.id) < 0)
+			toLookup.push(user.id);
 
 	var done = 0;
 	const requests = [];
@@ -382,8 +382,8 @@ function chainTweetsGetUserObjects(result, registered, users, tokenString) {
 				for (const object of response) {
 					users[object.id] = object;
 
-					for (const id of registered)
-						if (id == object.id)
+					for (const user of registered)
+						if (user.id == object.id)
 							addUserToUpdateForm(object);
 				}
 			}, window.onerror));
@@ -397,9 +397,11 @@ function chainTweetsGetUserObjects(result, registered, users, tokenString) {
 }
 
 function findExcludeSource(value) {
-	for (const element of document.forms["form-search"].elements["exsrc"])
+	Array.prototype.forEach.call(document.forms["form-search"].elements["exsrc"],
+	function(element) {
 		if (element.parentNode.lastChild.innerHTML == value)
 			return element.parentNode.lastChild;
+	});
 }
 
 function addSourceToForm(key, value) {
@@ -435,7 +437,39 @@ function chainSourcesOpen(idb) {
 	}
 }
 
+function updateWithTweets(db, objects)
+{
+	const sources = db.transaction("sources", "readwrite").objectStore("sources");
+	const promises = [];
+
+	for (const object of objects) {
+		promises.push(new Promise(function(resolve, reject) {
+			const source = findExcludeSource(object.source);
+			if (source) {
+				object.source = source;
+				resolve();
+			} else {
+				const request = sources.add(object.source);
+				request.onerror = reject;
+				request.onsuccess = function(event) {
+					addSourceToForm(event.target.result, object.source);
+					object.source = source;
+					resolve();
+				}
+			}
+		}));
+	}
+
+	Promise.all(promises).then(function() {
+		const tweets = db.transaction("tweets", "readwrite").objectStore("tweets");
+		for (const object of objects)
+			tweets.add(object).onerror = handleErrorEvent;
+	}, window.onerror);
+}
+
 function update(db, user, since, max) {
+	const objects = [];
+
 	const body = {
 		user_id: user.id.toString(),
 		since_id: since,
@@ -452,8 +486,6 @@ function update(db, user, since, max) {
 	}).then(function (response) {
 		return response.json();
 	}, window.onerror).then(function(response) {
-		const sources = db.transaction("sources", "readwrite").objectStore("sources");
-		const tweets = db.transaction("tweets", "readwrite").objectStore("tweets");
 		var tweet;
 		for (tweet of response) {
 			const object = {
@@ -486,25 +518,12 @@ function update(db, user, since, max) {
 					= new Date (tweet.retweeted_status.created_at);
 			}
 
-			new Promise(function(resolve, reject) {
-				const source = findExcludeSource(tweet.source);
-				if (source) {
-					resolve(source.firstNode.value);
-				} else {
-					const request = sources.add(tweet.source);
-					request.onerror = reject;
-					request.onsuccess = function(event) {
-						addSourceToForm(event.target.result, tweet.source);
-						resolve(event.target.result);
-					}
-				}
-			}).then(function(source) {
-				object.source = source;
-				tweets.add(object).onerror = handleErrorEvent;
-			});
+			objects.push(object);
 		}
 
-		if (response.length >= 200)
+		if (response.length < 200)
+			updateWithTweets(db, objects);
+		else
 			update(db, user, since, tweet.id_str);
 	}, window.onerror);
 }
@@ -607,7 +626,7 @@ function getUsersAndRegisterUpdater(idb, tokenString, resolve, reject) {
 	request.onsuccess = function(event) {
 		const cursor = event.target.result;
 		if (cursor) {
-			objects.push(cursor.value.id);
+			objects.push(cursor.value);
 			cursor.continue();
 		} else {
 			registerUpdater(idb, objects, tokenString);

@@ -50,9 +50,9 @@ function createObjects(rows) {
 	const tweets = [];
 	const sources = [];
 
-	for (var i = 1; i < rows.length; i++) {
+	for (let i = 1; i < rows.length; i++) {
 		const tweet = { };
-		for (var j = 0; j < rows[i].length; j++) {
+		for (let j = 0; j < rows[i].length; j++) {
 			if (!rows[i][j])
 				continue;
 
@@ -94,9 +94,9 @@ function createObjects(rows) {
 
 function parse(csv) {
 	const rows = [];
-	var entry = "";
-	var row = [];
-	for (var i = 0; i < csv.length;) {
+	let entry = "";
+	let row = [];
+	for (let i = 0; i < csv.length;) {
 		switch (csv[i]) {
 		case ",":
 			row.push(entry);
@@ -181,8 +181,8 @@ function chainStoreTweets(db, tweets, sources) {
 
 	const store = db.transaction("tweets", "readwrite").objectStore("tweets");
 
-	var stored = 0;
-	for (var i = 0; i < tweets.length; i++) {
+	let stored = 0;
+	for (let i = 0; i < tweets.length; i++) {
 		tweets[i].source = sources[tweets[i].source];
 
 		const request = store.add(tweets[i]);
@@ -198,7 +198,7 @@ function chainStoreTweets(db, tweets, sources) {
 Promise.all([file, db]).then(function(args) {
 	const store = args[1].transaction("sources", "readwrite").objectStore("sources");
 
-	var stored = 0;
+	let stored = 0;
 	const sources = { };
 	for (const source of args[0].sources) {
 		store.add(source).onsuccess = function(event) {

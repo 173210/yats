@@ -15,7 +15,7 @@
 
 "use strict";
 
-var resultBottom;
+let resultBottom;
 
 function resultInit() {
 	const result = document.getElementById("result");
@@ -85,7 +85,7 @@ function getTypeOfQuery(string) {
 
 function parseQuery(iterator, block) {
 	const queries = [];
-	var word;
+	let word;
 
 	function initializeWord() {
 		word = "";
@@ -99,7 +99,7 @@ function parseQuery(iterator, block) {
 
 	initializeWord();
 	while (true) {
-		var result = iterator.next();
+		let result = iterator.next();
 		if (result.done || result.value == ")")
 			break;
 
@@ -110,7 +110,7 @@ function parseQuery(iterator, block) {
 			break;
 
 		case "\"":
-			var quoted = "";
+			let quoted = "";
 			while (true) {
 				result = iterator.next();
 				if (result.done || result.value == "\"")
@@ -179,10 +179,10 @@ function matchString(string, value) {
 }
 
 function matchQuery(value, queries) {
-	var r;
-	var opcode = null;
+	let r;
+	let opcode = null;
 	queries.some(function(query) {
-		var cur;
+		let cur;
 
 		switch (query.type) {
 		case "STRING":
@@ -267,7 +267,7 @@ function getTweetOriginUserId(tweet) {
 function chainTweetsShow(users, tweets) {
 	const fragment = document.createDocumentFragment();
 
-	for (var gap = (document.body.scrollTop + document.documentElement.clientHeight) - resultBottom;
+	for (let gap = (document.body.scrollTop + document.documentElement.clientHeight) - resultBottom;
 		gap > 0;
 		gap -= 40)
 	{
@@ -368,7 +368,7 @@ function chainTweetsGetUserObjects(result, registered, users, tokenString) {
 		if (toLookup.indexOf(user.id) < 0)
 			toLookup.push(user.id);
 
-	var done = 0;
+	let done = 0;
 	const requests = [];
 	const userNames = [];
 	while (done < toLookup.length) {
@@ -485,7 +485,7 @@ function update(db, user, since, max) {
 	}).then(function (response) {
 		return response.json();
 	}, window.onerror).then(function(response) {
-		var tweet;
+		let tweet;
 		for (tweet of response) {
 			const object = {
 				tweet_id: tweet.id_str,
@@ -656,7 +656,7 @@ function chainTweetsSecondSearch(idb, users, tokenString) {
 
 function updateExcludedSourcesWithForm() {
 	const elements = document.forms["form-search"].elements["exsrc"];
-	for (var i = 0; i < elements.length; i++) {
+	for (let i = 0; i < elements.length; i++) {
 		const index = excludedSources.indexOf(elements[i].value);
 		if (elements[i].checked) {
 			if (index < 0)
@@ -683,7 +683,7 @@ open.onsuccess = function() {
 			chainTweetsSecondSearch(db, users, response.access_token);
 
 			const options = [];
-			for (var index = 0; index < event.target.length; index++) {
+			for (let index = 0; index < event.target.length; index++) {
 				const input = event.target[index];
 				const name = input.name;
 				const raw = input.value;

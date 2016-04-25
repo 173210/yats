@@ -182,10 +182,10 @@ function chainStoreTweets(db, tweets, sources) {
 	const store = db.transaction("tweets", "readwrite").objectStore("tweets");
 
 	let stored = 0;
-	for (let i = 0; i < tweets.length; i++) {
-		tweets[i].source = sources[tweets[i].source];
+	for (const tweet of tweets) {
+		tweet.source = sources[tweet.source];
 
-		const request = store.add(tweets[i]);
+		const request = store.add(tweet);
 		request.onerror = handleErrorEvent;
 		request.onsuccess = function() {
 			stored++;
